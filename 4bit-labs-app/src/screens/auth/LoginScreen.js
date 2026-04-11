@@ -71,7 +71,7 @@ const LoginScreen = ({ navigation }) => {
             onChangeText={setEmail}
             placeholder="Enter your email or phone"
             keyboardType="email-address"
-            icon="👤"
+            icon="person"
           />
 
           {/* Password Input */}
@@ -81,7 +81,8 @@ const LoginScreen = ({ navigation }) => {
             onChangeText={setPassword}
             placeholder="••••••••"
             secureTextEntry={!showPassword}
-            rightIcon={showPassword ? '🙈' : '👁'}
+            icon="lock"
+            rightIcon={showPassword ? 'visibility-off' : 'visibility'}
             onRightIconPress={() => setShowPassword(!showPassword)}
           />
 

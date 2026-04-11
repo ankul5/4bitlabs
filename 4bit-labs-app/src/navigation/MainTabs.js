@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, SHADOWS } from '../config/theme';
 
@@ -29,9 +30,11 @@ const CourseStackNavigator = () => {
 
 const TabIcon = ({ label, icon, focused }) => (
   <View style={[tabStyles.tabItem, focused && tabStyles.tabItemActive]}>
-    <Text style={[tabStyles.tabIcon, focused && tabStyles.tabIconActive]}>
-      {icon}
-    </Text>
+    <MaterialIcons
+      name={icon}
+      size={24}
+      style={[tabStyles.tabIcon, focused && tabStyles.tabIconActive]}
+    />
     <Text style={[tabStyles.tabLabel, focused && tabStyles.tabLabelActive]}>
       {label}
     </Text>
@@ -77,7 +80,7 @@ const MainTabs = () => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="HOME" icon="🏠" focused={focused} />
+            <TabIcon label="HOME" icon="home" focused={focused} />
           ),
         }}
       />
@@ -86,7 +89,7 @@ const MainTabs = () => {
         component={CourseStackNavigator}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="COURSE" icon="📖" focused={focused} />
+            <TabIcon label="COURSE" icon="menu-book" focused={focused} />
           ),
         }}
       />
@@ -95,7 +98,7 @@ const MainTabs = () => {
         component={MentorScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="MENTOR" icon="👨‍🏫" focused={focused} />
+            <TabIcon label="MENTOR" icon="people" focused={focused} />
           ),
         }}
       />
@@ -104,7 +107,7 @@ const MainTabs = () => {
         component={StoreScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="STORE" icon="🛍️" focused={focused} />
+            <TabIcon label="STORE" icon="store" focused={focused} />
           ),
         }}
       />

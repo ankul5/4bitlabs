@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../config/theme';
@@ -29,7 +30,7 @@ const SidebarContent = ({ onClose }) => {
       activeOpacity={0.7}
       onPress={() => navigateTo(screen)}
     >
-      <Text style={[styles.navIcon, active && styles.navIconActive]}>{icon}</Text>
+      <MaterialIcons name={icon} size={24} style={[styles.navIcon, active && styles.navIconActive]} />
       <Text style={[styles.navLabel, active && styles.navLabelActive]}>{label}</Text>
     </TouchableOpacity>
   );
@@ -58,11 +59,11 @@ const SidebarContent = ({ onClose }) => {
       {/* Nav Links */}
       <View style={styles.navLinks}>
         {/* We derive current active visually from route if possible, defaulting to Home for mockup */}
-        <NavItem label="Home" icon="🏠" screen="Home" active={true} />
-        <NavItem label="Course" icon="🎓" screen="Course" />
-        <NavItem label="Store" icon="🛍️" screen="Store" />
-        <NavItem label="Leaderboard" icon="📊" screen="Leaderboard" />
-        <NavItem label="Mentorship" icon="👥" screen="Mentor" />
+        <NavItem label="Home" icon="home" screen="Home" active={true} />
+        <NavItem label="Course" icon="school" screen="Course" />
+        <NavItem label="Store" icon="store" screen="Store" />
+        <NavItem label="Leaderboard" icon="leaderboard" screen="Leaderboard" />
+        <NavItem label="Mentorship" icon="people" screen="Mentor" />
       </View>
 
       {/* Bottom Section */}
@@ -75,7 +76,7 @@ const SidebarContent = ({ onClose }) => {
             logout();
           }}
         >
-          <Text style={styles.logoutIcon}>🚪</Text>
+          <MaterialIcons name="logout" size={24} style={styles.logoutIcon} />
           <Text style={styles.logoutLabel}>Logout</Text>
         </TouchableOpacity>
       </View>

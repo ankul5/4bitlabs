@@ -139,6 +139,7 @@ const RegisterScreen = ({ navigation }) => {
             value={form.name}
             onChangeText={(v) => updateForm('name', v)}
             placeholder="John Doe"
+            icon="person"
           />
 
           <InputField
@@ -147,6 +148,7 @@ const RegisterScreen = ({ navigation }) => {
             onChangeText={(v) => updateForm('email', v)}
             placeholder="john@example.com"
             keyboardType="email-address"
+            icon="email"
           />
 
           <InputField
@@ -155,6 +157,7 @@ const RegisterScreen = ({ navigation }) => {
             onChangeText={(v) => updateForm('phone', v)}
             placeholder="+1 (555) 000-0000"
             keyboardType="phone-pad"
+            icon="phone"
           />
 
           <InputField
@@ -163,6 +166,7 @@ const RegisterScreen = ({ navigation }) => {
             onChangeText={(v) => updateForm('password', v)}
             placeholder="••••••••"
             secureTextEntry
+            icon="lock"
           />
 
           {/* School Picker */}

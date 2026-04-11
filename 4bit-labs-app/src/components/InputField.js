@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, TextInput, Text, StyleSheet } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, RADIUS, SPACING } from '../config/theme';
 
 const InputField = ({
@@ -20,7 +21,7 @@ const InputField = ({
       {label && <Text style={styles.label}>{label}</Text>}
       <View style={styles.inputWrapper}>
         {icon && (
-          <Text style={styles.icon}>{icon}</Text>
+          <MaterialIcons name={icon} style={styles.icon} />
         )}
         <TextInput
           value={value}
@@ -36,12 +37,9 @@ const InputField = ({
           ]}
         />
         {rightIcon && (
-          <Text
-            style={styles.rightIcon}
-            onPress={onRightIconPress}
-          >
-            {rightIcon}
-          </Text>
+          <TouchableOpacity style={styles.rightIconWrapper} onPress={onRightIconPress}>
+            <MaterialIcons name={rightIcon} style={styles.rightIcon} />
+          </TouchableOpacity>
         )}
       </View>
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -89,10 +87,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: 'rgba(93, 63, 60, 0.5)',
   },
-  rightIcon: {
+  rightIconWrapper: {
     position: 'absolute',
     right: 16,
     zIndex: 1,
+    padding: 4,
+  },
+  rightIcon: {
     fontSize: 20,
     color: 'rgba(93, 63, 60, 0.5)',
   },
