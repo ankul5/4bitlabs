@@ -6,12 +6,16 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MaterialIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
 import { useAuth } from '../../context/AuthContext';
-import { getMyProfile } from '../../services/authService';
+import { getMyProfile, uploadImage, updateMyProfile } from '../../services/authService';
 
 const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -34,6 +38,53 @@ const ProfileScreen = ({ navigation }) => {
   }, []);
 
   const displayUser = profile || user || {};
+
+  const handleImageOption = () => {
+    Alert.alert(
+      'Update Profile Photo',
+      'Choose a method to set your new profile picture',
+      [
+        { text: 'Take Photo', onPress: () => handlePickImage('camera') },
+        { text: 'Choose from Gallery', onPress: () => handlePickImage('gallery') },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const handlePickImage = async (type) => {
+    try {
+      let result;
+      if (type === 'camera') {
+        const permission = await ImagePicker.requestCameraPermissionsAsync();
+        if (permission.status !== 'granted') return Alert.alert('Permission needed', 'Camera permission is required');
+        result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.5 });
+      } else {
+        const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (permission.status !== 'granted') return Alert.alert('Permission needed', 'Gallery permission is required');
+        result = await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ImagePicker.MediaTypeOptions.Images,
+          allowsEditing: true,
+          aspect: [1, 1],
+          quality: 0.5,
+        });
+      }
+
+      if (!result.canceled && result.assets[0]) {
+        setLoading(true);
+        const uploadRes = await uploadImage(result.assets[0].uri);
+        if (uploadRes.data && uploadRes.data.url) {
+           await updateMyProfile({ avatar: uploadRes.data.url });
+           const updated = await getMyProfile();
+           setProfile(updated);
+        }
+      }
+    } catch (error) {
+      console.warn('Image upload error:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -74,14 +125,19 @@ const ProfileScreen = ({ navigation }) => {
                 source={{ uri: displayUser.profileUrl || displayUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser.name || 'U')}` }} 
                 style={styles.mainAvatar} 
               />
-              <TouchableOpacity style={styles.editBtn} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.editBtn} activeOpacity={0.8} onPress={handleImageOption}>
                 <LinearGradient
                   colors={[COLORS.primary, COLORS.primaryContainer]}
                   style={styles.editBtnGradient}
                 >
-                  <Text style={styles.editIcon}>✏️</Text>
+                  <MaterialIcons name="edit" size={14} color="#fff" style={styles.editIcon} />
                 </LinearGradient>
               </TouchableOpacity>
+              {loading && (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 999, justifyContent: 'center', alignItems: 'center' }]}>
+                  <ActivityIndicator color={COLORS.primary} />
+                </View>
+              )}
             </View>
             <View style={styles.heroTextContent}>
               <Text style={styles.profileLabel}>SCHOLAR PROFILE</Text>
@@ -147,16 +203,16 @@ const ProfileScreen = ({ navigation }) => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtonsRow}>
-          <TouchableOpacity style={styles.primaryActionBtn} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.primaryActionBtn} activeOpacity={0.9} onPress={handleImageOption}>
             <LinearGradient
               colors={[COLORS.primary, COLORS.primaryContainer]}
               style={styles.primaryActionGradient}
             >
-              <Text style={styles.primaryActionText}>Edit Profile</Text>
+              <Text style={styles.primaryActionText}>Update Photo</Text>
             </LinearGradient>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.secondaryActionBtn} activeOpacity={0.7}>
-            <Text style={styles.secondaryActionText}>Account Settings</Text>
+          <TouchableOpacity style={styles.secondaryActionBtn} activeOpacity={0.7} onPress={handleLogout}>
+            <Text style={styles.secondaryActionText}>Logout</Text>
           </TouchableOpacity>
         </View>
 

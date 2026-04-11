@@ -58,3 +58,32 @@ export const getMyProfile = async () => {
 export const registerFcmToken = async (fcmToken) => {
   await api.put('/auth/fcm-token', { fcmToken });
 };
+
+/**
+ * Upload an image file (e.g. avatar) to backend
+ */
+export const uploadImage = async (imageUri) => {
+  const formData = new FormData();
+  const filename = imageUri.split('/').pop() || 'photo.jpg';
+  const match = /\.(\w+)$/.exec(filename);
+  const type = match ? `image/${match[1]}` : `image`;
+  
+  formData.append('file', {
+    uri: imageUri,
+    name: filename,
+    type,
+  });
+
+  const res = await api.post('/upload/image', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return res.data; // should contain { data: { url } } based on backend
+};
+
+/**
+ * Update current user profile (name, phone, avatar)
+ */
+export const updateMyProfile = async (updates) => {
+  const res = await api.put('/auth/me', updates);
+  return res.data.user;
+};
