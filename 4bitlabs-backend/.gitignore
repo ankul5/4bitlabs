@@ -1,0 +1,8 @@
+node_modules/
+.env
+firebase-admin-key.json
+*.log
+dist/
+coverage/
+.DS_Store
+Thumbs.db
