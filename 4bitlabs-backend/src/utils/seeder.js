@@ -100,9 +100,53 @@ const createUsers = (schoolId) => [
   },
   {
     uid: 'firebase_mentor_001',
-    name: 'Vikram Iyer',
-    email: 'vikram@mentor.com',
-    phone: '+919876543215',
+    name: 'Devraj Bharti',
+    email: 'devraj@mentor.com',
+    phone: '+919000000001',
+    role: 'mentor',
+    schoolId,
+    points: 0,
+    isActive: true,
+    isVerified: true,
+  },
+  {
+    uid: 'firebase_mentor_002',
+    name: 'Ankul Tiwari',
+    email: 'ankul@mentor.com',
+    phone: '+919000000002',
+    role: 'mentor',
+    schoolId,
+    points: 0,
+    isActive: true,
+    isVerified: true,
+  },
+  {
+    uid: 'firebase_mentor_003',
+    name: 'Aman Patel',
+    email: 'aman@mentor.com',
+    phone: '+919000000003',
+    role: 'mentor',
+    schoolId,
+    points: 0,
+    isActive: true,
+    isVerified: true,
+  },
+  {
+    uid: 'firebase_mentor_004',
+    name: 'Lokesh Bhavsar',
+    email: 'lokesh@mentor.com',
+    phone: '+919000000004',
+    role: 'mentor',
+    schoolId,
+    points: 0,
+    isActive: true,
+    isVerified: true,
+  },
+  {
+    uid: 'firebase_mentor_005',
+    name: 'Rohit Pranjale',
+    email: 'rohit@mentor.com',
+    phone: '+919000000005',
     role: 'mentor',
     schoolId,
     points: 0,
@@ -260,16 +304,15 @@ const createQuizzes = (courseId, schoolId, teacherId) => [
   },
 ];
 
-const createMentors = (userId, uid) => [
-  {
-    userId,
-    uid,
-    name: 'Vikram Iyer',
-    bio: 'Senior Software Engineer with 8+ years of experience in full-stack development. Passionate about teaching and mentoring.',
+const createMentors = (mentors) => mentors.map((m) => ({
+    userId: m._id,
+    uid: m.uid,
+    name: m.name,
+    bio: 'Senior Professional with 8+ years of experience. Passionate about teaching and mentorship at 4Bit Labs.',
     skills: ['JavaScript', 'React', 'Node.js', 'Python', 'System Design'],
     experience: '8 years',
-    rating: 4.5,
-    reviewCount: 12,
+    rating: 4.8,
+    reviewCount: Math.floor(Math.random() * 50) + 10,
     sessionPrice: 50,
     isVerified: true,
     isAvailable: true,
@@ -279,9 +322,8 @@ const createMentors = (userId, uid) => [
       { day: 'Friday', times: ['11:00 AM', '03:00 PM'] },
       { day: 'Saturday', times: ['10:00 AM', '12:00 PM', '02:00 PM'] },
     ],
-    totalSessionsCompleted: 45,
-  },
-];
+    totalSessionsCompleted: Math.floor(Math.random() * 100) + 20,
+}));
 
 const createAnnouncements = (schoolId, createdBy) => [
   {
@@ -327,9 +369,9 @@ const seedDB = async () => {
     const createdUsers = await User.insertMany(userData);
     const admin = createdUsers.find((u) => u.role === 'super_admin');
     const teacher = createdUsers.find((u) => u.role === 'teacher');
-    const mentor = createdUsers.find((u) => u.role === 'mentor');
+    const mentors = createdUsers.filter((u) => u.role === 'mentor');
     const students = createdUsers.filter((u) => u.role === 'student');
-    console.log(`✅ ${createdUsers.length} users created (1 admin, 1 teacher, 3 students, 1 mentor)`);
+    console.log(`✅ ${createdUsers.length} users created (1 admin, 1 teacher, 3 students, 5 mentors)`);
 
     // Update school admin
     await School.findByIdAndUpdate(mainSchool._id, {
@@ -361,7 +403,7 @@ const seedDB = async () => {
     console.log(`✅ ${createdQuizzes.length} quizzes created`);
 
     // 5. Create mentor profile
-    const mentorData = createMentors(mentor._id, mentor.uid);
+    const mentorData = createMentors(mentors);
     const createdMentors = await Mentor.insertMany(mentorData);
     console.log(`✅ ${createdMentors.length} mentors created`);
 
@@ -392,7 +434,7 @@ const seedDB = async () => {
     console.log(`Admin:  ${admin.email}`);
     console.log(`Teacher: ${teacher.email}`);
     console.log(`Students: ${students.map((s) => s.email).join(', ')}`);
-    console.log(`Mentor: ${mentor.email}`);
+    console.log(`Mentors: ${mentors.map((m) => m.name).join(', ')}`);
     console.log(`Courses: ${createdCourses.map((c) => c.title).join(', ')}`);
     console.log(`Quiz: ${createdQuizzes[0].title}`);
     console.log('─────────────────────────────────────────────\n');
