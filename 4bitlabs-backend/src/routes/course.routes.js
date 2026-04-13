@@ -21,21 +21,21 @@ router.get('/', protect, getCourses);
 router.get('/:id', protect, getCourse);
 
 // POST /api/v1/courses               — Teacher/Admin create course
-router.post('/', protect, authorize('teacher', 'school_admin', 'super_admin'), createCourseValidation, validate, createCourse);
+router.post('/', protect, authorize('mentor', 'teacher', 'school_admin', 'super_admin'), createCourseValidation, validate, createCourse);
 
 // PUT  /api/v1/courses/:id           — Teacher/Admin update course
-router.put('/:id', protect, authorize('teacher', 'school_admin', 'super_admin'), updateCourseValidation, validate, updateCourse);
+router.put('/:id', protect, authorize('mentor', 'teacher', 'school_admin', 'super_admin'), updateCourseValidation, validate, updateCourse);
 
 // DELETE /api/v1/courses/:id         — Teacher/Admin delete course
-router.delete('/:id', protect, authorize('teacher', 'school_admin', 'super_admin'), deleteCourse);
+router.delete('/:id', protect, authorize('mentor', 'teacher', 'school_admin', 'super_admin'), deleteCourse);
 
 // POST /api/v1/courses/:id/lectures  — Add lecture to course
-router.post('/:id/lectures', protect, authorize('teacher', 'school_admin', 'super_admin'), addLectureValidation, validate, addLecture);
+router.post('/:id/lectures', protect, authorize('mentor', 'teacher', 'school_admin', 'super_admin'), addLectureValidation, validate, addLecture);
 
 // PUT  /api/v1/courses/:id/lectures/:lectureId  — Update lecture
-router.put('/:id/lectures/:lectureId', protect, authorize('teacher', 'school_admin', 'super_admin'), updateLecture);
+router.put('/:id/lectures/:lectureId', protect, authorize('mentor', 'teacher', 'school_admin', 'super_admin'), updateLecture);
 
 // DELETE /api/v1/courses/:id/lectures/:lectureId — Delete lecture
-router.delete('/:id/lectures/:lectureId', protect, authorize('teacher', 'school_admin', 'super_admin'), deleteLecture);
+router.delete('/:id/lectures/:lectureId', protect, authorize('mentor', 'teacher', 'school_admin', 'super_admin'), deleteLecture);
 
 module.exports = router;

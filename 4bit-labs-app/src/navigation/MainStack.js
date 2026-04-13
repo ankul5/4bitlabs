@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import MainTabs from './MainTabs';
 import ProfileScreen from '../screens/profile/ProfileScreen';
+import MentorChatScreen from '../screens/mentor/MentorChatScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -10,6 +11,7 @@ const MainStack = () => {
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
       <Stack.Screen name="MainTabs" component={MainTabs} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="MentorChat" component={MentorChatScreen} />
     </Stack.Navigator>
   );
 };

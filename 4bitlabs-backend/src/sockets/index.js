@@ -1,44 +1,62 @@
-const leaderboardSocket = require('./leaderboardSocket');
-const chatSocket = require('./chatSocket');
+const { pool } = require('../config/database');
 
-/**
- * Register all Socket.IO event handlers.
- * Called once from server.js with the io instance.
- */
 const registerSocketHandlers = (io) => {
   io.on('connection', (socket) => {
-    console.log(`🔌 Socket connected: ${socket.id}`);
+    console.log(`Socket connected: ${socket.id}`);
 
-    // ─── Leaderboard room ───────────────────────────────────────────────────
+    // ─── Leaderboard rooms ────────────────────────────────────────────────────
     socket.on('join:leaderboard', (courseId) => {
       socket.join(`leaderboard_${courseId}`);
-      console.log(`📊 ${socket.id} joined leaderboard room: ${courseId}`);
     });
-
     socket.on('leave:leaderboard', (courseId) => {
       socket.leave(`leaderboard_${courseId}`);
     });
 
-    // ─── Chat room ───────────────────────────────────────────────────────────
-    socket.on('join:chat', (courseId) => {
-      socket.join(`chat_${courseId}`);
-      console.log(`💬 ${socket.id} joined chat room: ${courseId}`);
+    // ─── Chat rooms ────────────────────────────────────────────────────────────
+    socket.on('join:chat', (roomId) => {
+      socket.join(`chat_${roomId}`);
+      console.log(`Socket ${socket.id} joined chat room: ${roomId}`);
     });
 
-    socket.on('leave:chat', (courseId) => {
-      socket.leave(`chat_${courseId}`);
+    socket.on('leave:chat', (roomId) => {
+      socket.leave(`chat_${roomId}`);
     });
 
-    // ─── Send chat message via Socket.IO (mirrors Firestore fallback) ────────
+    // ─── Real-time chat message ────────────────────────────────────────────────
+    socket.on('chat:message', async (data) => {
+      const { roomId, message, senderId, senderName, senderAvatar, senderRole } = data;
+      try {
+        const { rows } = await pool.query(
+          `INSERT INTO chat_messages (room_id, sender_id, sender_name, sender_avatar, sender_role, message)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+          [roomId, senderId, senderName, senderAvatar || '', senderRole || 'student', message]
+        );
+        const msg = {
+          id: rows[0].id, roomId: rows[0].room_id, senderId: rows[0].sender_id,
+          senderName: rows[0].sender_name, senderAvatar: rows[0].sender_avatar,
+          senderRole: rows[0].sender_role, message: rows[0].message, createdAt: rows[0].created_at,
+        };
+        // Send to everyone in room (including sender so all get the DB-persisted version)
+        io.to(`chat_${roomId}`).emit('chat:message', msg);
+      } catch (err) {
+        console.error('Chat message error:', err.message);
+        socket.emit('chat:error', { message: 'Failed to send message.' });
+      }
+    });
+
+    // ─── Typing indicator ──────────────────────────────────────────────────────
+    socket.on('chat:typing', (data) => {
+      socket.to(`chat_${data.roomId}`).emit('chat:typing', { name: data.name, isTyping: data.isTyping });
+    });
+
+    // ─── Legacy course chat (keep backward compat) ────────────────────────────
     socket.on('message:send', (data) => {
       const { courseId, message } = data;
-      // Broadcast to everyone in the room except the sender
       socket.to(`chat_${courseId}`).emit('message:receive', message);
     });
 
-    // ─── Disconnect ──────────────────────────────────────────────────────────
     socket.on('disconnect', (reason) => {
-      console.log(`⚡ Socket disconnected: ${socket.id} — ${reason}`);
+      console.log(`Socket disconnected: ${socket.id} — ${reason}`);
     });
   });
 };

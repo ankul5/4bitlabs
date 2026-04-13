@@ -1,191 +1,177 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { MaterialIcons, MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
 import Header from '../../components/Header';
 import { useAuth } from '../../context/AuthContext';
-import { STORE_PRODUCTS, LAB_INVENTORY, USER_DATA, STORE_URL } from '../../data/mockData';
+import { getLabItems } from '../../services/adminService';
+
+const STORE_URL = 'https://4bitlabs.in/shop';
 
 const StoreScreen = ({ navigation }) => {
   const { user } = useAuth();
+  const [labItems, setLabItems] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchLab = useCallback(async () => {
+    try {
+      const items = await getLabItems(user?.school_id);
+      setLabItems(items);
+    } catch (e) { console.warn('Lab items fetch:', e.message); }
+  }, [user]);
+
+  useEffect(() => { fetchLab(); }, [fetchLab]);
+
+  const onRefresh = async () => { setRefreshing(true); await fetchLab(); setRefreshing(false); };
 
   const openStore = () => {
     Linking.openURL(STORE_URL).catch(() => {
-      Linking.openURL('https://google.com');
+      Linking.openURL('https://4bitlabs.in');
     });
   };
 
-  const featured = STORE_PRODUCTS.find(p => p.featured);
+  const statusConfig = {
+    available: { color: '#22c55e', bg: '#f0fdf4', label: 'Available', icon: 'check-circle' },
+    in_use: { color: '#3b82f6', bg: '#eff6ff', label: 'In Use', icon: 'pending' },
+    maintenance: { color: '#f59e0b', bg: '#fffbeb', label: 'Maintenance', icon: 'build' },
+    out_of_stock: { color: '#ef4444', bg: '#fef2f2', label: 'Out of Stock', icon: 'cancel' },
+  };
 
   return (
     <View style={styles.container}>
-      <Header user={user || USER_DATA} />
-      
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Editorial Header */}
-        <View style={styles.heroSection}>
-          <Text style={styles.heroTag}>HARDWARE MANIFEST</Text>
-          <Text style={styles.heroTitle}>The Precise{'\n'}Catalyst Store</Text>
-          <Text style={styles.heroDesc}>
-            Curated industrial-grade components for the modern technical scholar. Precision engineering meets educational exploration.
-          </Text>
-          <View style={styles.newItemsBadge}>
-            <Text style={styles.newItemsNum}>08</Text>
-            <View style={styles.newItemsTextWrap}>
-              <Text style={styles.newItemsLabel}>NEW ITEMS</Text>
-              <Text style={styles.newItemsLabel}>THIS MONTH</Text>
-            </View>
-          </View>
+      <Header user={user} />
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+      >
+        {/* ─── SECTION 1: Online Store ─────────────────────────────────────── */}
+        <View style={styles.sectionHeader}>
+          <MaterialIcons name="storefront" size={20} color={COLORS.primary} />
+          <Text style={styles.sectionTag}>ONLINE STORE</Text>
         </View>
 
-        {/* Featured Product */}
-        {featured && (
-          <View style={styles.featuredCard}>
-            <View style={styles.featuredImageWrap}>
-              <Image source={{ uri: featured.image }} style={styles.featuredImage} />
-              <View style={styles.featuredBadge}>
-                <Text style={styles.featuredBadgeText}>{featured.badge?.toUpperCase()}</Text>
+        <TouchableOpacity activeOpacity={0.9} onPress={openStore}>
+          <LinearGradient
+            colors={['#0f172a', '#1e293b']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.storeCard}
+          >
+            <View style={styles.storeIconWrap}>
+              <MaterialCommunityIcons name="shopping" size={36} color="#818cf8" />
+            </View>
+            <Text style={styles.storeTitle}>4BIT LABS Store</Text>
+            <Text style={styles.storeDesc}>
+              Browse our full catalog of industrial-grade components, kits, and lab equipment.
+            </Text>
+            <View style={styles.storeLinkRow}>
+              <View style={styles.storeUrlBadge}>
+                <MaterialIcons name="language" size={14} color="#818cf8" />
+                <Text style={styles.storeUrlText}>4bitlabs.in/shop</Text>
+              </View>
+              <View style={styles.visitBtn}>
+                <Text style={styles.visitBtnText}>Visit Store</Text>
+                <MaterialIcons name="arrow-forward" size={16} color="#fff" />
               </View>
             </View>
-            <View style={styles.featuredInfo}>
-              <View style={styles.featuredInfoLeft}>
-                <Text style={styles.featuredName}>{featured.name}</Text>
-                <Text style={styles.featuredDesc}>{featured.description}</Text>
-              </View>
-              <View style={styles.featuredInfoRight}>
-                <Text style={styles.featuredPrice}>${featured.price.toFixed(2)}</Text>
-                <TouchableOpacity onPress={openStore} activeOpacity={0.9}>
-                  <LinearGradient
-                    colors={[COLORS.primary, COLORS.primaryContainer]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.visitStoreBtn}
-                  >
-                    <Text style={styles.visitStoreBtnText}>Visit Store</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        )}
+          </LinearGradient>
+        </TouchableOpacity>
 
-        {/* Product Cards */}
-        <View style={styles.productsGrid}>
-          {/* Resistor Kit */}
-          <View style={styles.sideCard}>
-            <View style={styles.sideCardHeader}>
-              <Text style={styles.sideCardIcon}>📦</Text>
-              <Text style={styles.inStockText}>In Stock</Text>
+        {/* Quick link cards */}
+        <View style={styles.quickLinks}>
+          <TouchableOpacity style={styles.quickCard} onPress={openStore}>
+            <View style={[styles.quickIcon, { backgroundColor: '#fef2f2' }]}>
+              <MaterialCommunityIcons name="chip" size={22} color={COLORS.primary} />
             </View>
-            <Text style={styles.sideCardName}>Resistor Kit</Text>
-            <Text style={styles.sideCardDesc}>Comprehensive 600-piece metal film resistor set with 1% tolerance across 30 common values.</Text>
-            <View style={styles.sideCardFooter}>
-              <Text style={styles.sideCardPrice}>$12.50</Text>
-              <TouchableOpacity style={styles.arrowBtn} onPress={openStore}>
-                <Text style={styles.arrowBtnText}>→</Text>
-              </TouchableOpacity>
+            <Text style={styles.quickLabel}>Components</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickCard} onPress={openStore}>
+            <View style={[styles.quickIcon, { backgroundColor: '#eef2ff' }]}>
+              <MaterialCommunityIcons name="package-variant" size={22} color="#6366f1" />
             </View>
-          </View>
-
-          {/* Breadboard */}
-          <View style={styles.breadboardCard}>
-            <View style={styles.breadboardImageWrap}>
-              <Image
-                source={{ uri: STORE_PRODUCTS[2]?.image || 'https://images.unsplash.com/photo-1608564697071-ddf911d81370?w=400' }}
-                style={styles.breadboardImage}
-              />
+            <Text style={styles.quickLabel}>Kits</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickCard} onPress={openStore}>
+            <View style={[styles.quickIcon, { backgroundColor: '#f0fdf4' }]}>
+              <MaterialCommunityIcons name="tools" size={22} color="#22c55e" />
             </View>
-            <Text style={styles.breadboardName}>Breadboard</Text>
-            <Text style={styles.breadboardSpec}>830 POINTS / DUAL RAIL</Text>
-            <View style={styles.breadboardFooter}>
-              <Text style={styles.breadboardPrice}>$6.00</Text>
-              <TouchableOpacity onPress={openStore}>
-                <Text style={styles.visitStoreLink}>Visit Store</Text>
-              </TouchableOpacity>
+            <Text style={styles.quickLabel}>Tools</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.quickCard} onPress={openStore}>
+            <View style={[styles.quickIcon, { backgroundColor: '#fffbeb' }]}>
+              <MaterialCommunityIcons name="book-open-variant" size={22} color="#f59e0b" />
             </View>
-          </View>
-
-          {/* Sensor Pack */}
-          <View style={styles.sensorCard}>
-            <Text style={styles.sensorTitle}>Sensor Pack</Text>
-            <Text style={styles.sensorDesc}>12 Essential sensors including ultrasonic and infrared.</Text>
-            <Text style={styles.sensorPrice}>$35.00</Text>
-            <TouchableOpacity onPress={openStore} activeOpacity={0.9}>
-              <LinearGradient
-                colors={[COLORS.primary, COLORS.primaryContainer]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.sensorBtn}
-              >
-                <Text style={styles.sensorBtnText}>Visit Store</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          {/* Jumper Wires (Flash Sale) */}
-          <View style={styles.flashCard}>
-            <View style={styles.flashBadge}>
-              <Text style={styles.flashBadgeText}>FLASH SALE</Text>
-            </View>
-            <Text style={styles.flashName}>Jumper Wires</Text>
-            <View style={styles.flashPriceRow}>
-              <View>
-                <Text style={styles.flashOriginal}>$8.00</Text>
-                <Text style={styles.flashPrice}>$4.99</Text>
-              </View>
-              <TouchableOpacity style={styles.flashCartBtn} onPress={openStore}>
-                <Text style={styles.flashCartIcon}>🛒</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Full Starter Kit CTA */}
-          <TouchableOpacity activeOpacity={0.9} onPress={openStore}>
-            <LinearGradient
-              colors={[COLORS.primary, COLORS.primaryContainer]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.starterKitCard}
-            >
-              <Text style={styles.starterKitTitle}>Full Starter Kit?</Text>
-              <Text style={styles.starterKitDesc}>Get all the essentials in one professional editorial package.</Text>
-              <View style={styles.starterKitBtn}>
-                <Text style={styles.starterKitBtnText}>Visit Full Store</Text>
-              </View>
-            </LinearGradient>
+            <Text style={styles.quickLabel}>Books</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Laboratory Inventory */}
-        <View style={styles.inventorySection}>
-          <View style={styles.inventoryHeader}>
-            <Text style={styles.inventoryTitle}>Laboratory Inventory</Text>
-            <View style={styles.inventoryLine} />
-          </View>
-          <View style={styles.inventoryGrid}>
-            {LAB_INVENTORY.map((item) => (
-              <TouchableOpacity key={item.id} style={styles.inventoryItem} activeOpacity={0.8} onPress={openStore}>
-                <View style={styles.inventoryIconWrap}>
-                  <Text style={styles.inventoryIcon}>
-                    {item.icon === 'memory' ? '💾' : item.icon === 'power' ? '🔌' : item.icon === 'cable' ? '🔗' : '📱'}
-                  </Text>
-                </View>
-                <View>
-                  <Text style={styles.inventoryItemName}>{item.name}</Text>
-                  <Text style={styles.inventoryItemPrice}>{item.price}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+        {/* ─── SECTION 2: Lab Items ─────────────────────────────────────────── */}
+        <View style={styles.divider} />
+
+        <View style={styles.sectionHeader}>
+          <MaterialCommunityIcons name="flask" size={20} color="#6366f1" />
+          <Text style={styles.sectionTag}>LAB INVENTORY</Text>
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{labItems.length}</Text>
           </View>
         </View>
+
+        <View style={styles.labInfoCard}>
+          <MaterialIcons name="info-outline" size={18} color="#6366f1" />
+          <Text style={styles.labInfoText}>
+            These items are available in your school lab. Need something? Order from the store above or request from your mentor.
+          </Text>
+        </View>
+
+        {labItems.length > 0 ? (
+          labItems.map((item, i) => {
+            const status = statusConfig[item.status] || statusConfig.available;
+            return (
+              <View key={item.id || i} style={styles.labCard}>
+                <View style={[styles.labIconWrap, { backgroundColor: status.bg }]}>
+                  <MaterialCommunityIcons name="flask-outline" size={24} color={status.color} />
+                </View>
+                <View style={styles.labInfo}>
+                  <Text style={styles.labName}>{item.name}</Text>
+                  <Text style={styles.labMeta}>
+                    {item.category || 'General'} • Qty: {item.quantity}
+                  </Text>
+                  {item.description ? (
+                    <Text style={styles.labDesc} numberOfLines={2}>{item.description}</Text>
+                  ) : null}
+                </View>
+                <View style={[styles.labStatusBadge, { backgroundColor: status.bg }]}>
+                  <MaterialIcons name={status.icon} size={12} color={status.color} />
+                  <Text style={[styles.labStatusText, { color: status.color }]}>{status.label}</Text>
+                </View>
+              </View>
+            );
+          })
+        ) : (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="flask-empty-outline" size={56} color="#cbd5e1" />
+            <Text style={styles.emptyTitle}>No Lab Items Yet</Text>
+            <Text style={styles.emptyDesc}>
+              Lab items will appear here once your mentor adds them. You can also order components from our online store.
+            </Text>
+            <TouchableOpacity style={styles.orderBtn} onPress={openStore}>
+              <MaterialIcons name="shopping-cart" size={18} color="#fff" />
+              <Text style={styles.orderBtnText}>Order from Store</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -196,77 +182,54 @@ const StoreScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.surface },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: SPACING.xl, paddingTop: SPACING.xl },
-  heroSection: { marginBottom: SPACING['3xl'] },
-  heroTag: { fontSize: 11, fontWeight: '700', color: COLORS.primary, letterSpacing: 4, marginBottom: 8 },
-  heroTitle: { fontSize: 36, fontWeight: '800', color: COLORS.onSurface, letterSpacing: -1.5, lineHeight: 42, marginBottom: 12 },
-  heroDesc: { fontSize: 14, color: COLORS.onSurfaceVariant, lineHeight: 20, marginBottom: SPACING.xl },
-  newItemsBadge: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  newItemsNum: { fontSize: 24, fontWeight: '700', color: COLORS.onSurface },
-  newItemsTextWrap: { borderLeftWidth: 1, borderLeftColor: COLORS.outlineVariant, paddingLeft: 12 },
-  newItemsLabel: { fontSize: 10, fontWeight: '600', color: COLORS.onSurfaceVariant, letterSpacing: 2 },
-  featuredCard: { backgroundColor: COLORS.surfaceContainerLowest, borderRadius: RADIUS.xl, overflow: 'hidden', marginBottom: SPACING['2xl'], ...SHADOWS.md },
-  featuredImageWrap: { width: '100%', height: 200, position: 'relative' },
-  featuredImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  featuredBadge: { position: 'absolute', top: 12, left: 12, backgroundColor: COLORS.primary, paddingHorizontal: 12, paddingVertical: 4, borderRadius: RADIUS.full },
-  featuredBadgeText: { fontSize: 9, fontWeight: '700', letterSpacing: 2, color: COLORS.white },
-  featuredInfo: { padding: SPACING.xl },
-  featuredInfoLeft: { marginBottom: SPACING.lg },
-  featuredName: { fontSize: 26, fontWeight: '800', color: COLORS.onSurface, letterSpacing: -0.5, marginBottom: 6 },
-  featuredDesc: { fontSize: 13, color: COLORS.onSurfaceVariant, lineHeight: 19 },
-  featuredInfoRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  featuredPrice: { fontSize: 28, fontWeight: '900', color: COLORS.primary },
-  visitStoreBtn: { paddingHorizontal: 24, paddingVertical: 14, borderRadius: RADIUS.full },
-  visitStoreBtnText: { color: COLORS.white, fontSize: 14, fontWeight: '700' },
-  productsGrid: { gap: SPACING.xl, marginBottom: SPACING['3xl'] },
-  sideCard: { backgroundColor: COLORS.surfaceContainerLow, borderRadius: RADIUS.xl, padding: SPACING.xl, borderBottomWidth: 4, borderBottomColor: COLORS.tertiary },
-  sideCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.lg },
-  sideCardIcon: { fontSize: 32 },
-  inStockText: { fontSize: 14, fontWeight: '700', color: COLORS.tertiary },
-  sideCardName: { fontSize: 18, fontWeight: '700', color: COLORS.onSurface, marginBottom: 6 },
-  sideCardDesc: { fontSize: 13, color: COLORS.onSurfaceVariant, lineHeight: 18, marginBottom: SPACING.lg },
-  sideCardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sideCardPrice: { fontSize: 20, fontWeight: '700', color: COLORS.onSurface },
-  arrowBtn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.primary, alignItems: 'center', justifyContent: 'center' },
-  arrowBtnText: { fontSize: 18, color: COLORS.primary, fontWeight: '700' },
-  breadboardCard: { backgroundColor: COLORS.surfaceContainerLowest, borderRadius: RADIUS.xl, padding: SPACING.xl, borderLeftWidth: 4, borderLeftColor: COLORS.primary, ...SHADOWS.sm },
-  breadboardImageWrap: { width: '100%', height: 160, borderRadius: RADIUS.lg, overflow: 'hidden', marginBottom: SPACING.lg, backgroundColor: COLORS.surfaceContainer },
-  breadboardImage: { width: '100%', height: '100%', resizeMode: 'cover' },
-  breadboardName: { fontSize: 17, fontWeight: '700', color: COLORS.onSurface, marginBottom: 2 },
-  breadboardSpec: { fontSize: 10, fontWeight: '600', color: COLORS.onSurfaceVariant, letterSpacing: 2, marginBottom: SPACING.lg },
-  breadboardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  breadboardPrice: { fontSize: 20, fontWeight: '900', color: COLORS.onSurface },
-  visitStoreLink: { fontSize: 13, fontWeight: '700', color: COLORS.primary, textDecorationLine: 'underline' },
-  sensorCard: { backgroundColor: COLORS.surfaceContainerHighest, borderRadius: RADIUS.xl, padding: SPACING['2xl'] },
-  sensorTitle: { fontSize: 22, fontWeight: '800', color: COLORS.onSurface, marginBottom: 6 },
-  sensorDesc: { fontSize: 13, color: COLORS.onSurfaceVariant, lineHeight: 18, marginBottom: SPACING.lg },
-  sensorPrice: { fontSize: 24, fontWeight: '900', color: COLORS.onSurface, marginBottom: SPACING.xl },
-  sensorBtn: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.full, alignSelf: 'flex-start' },
-  sensorBtnText: { color: COLORS.white, fontSize: 13, fontWeight: '700' },
-  flashCard: { backgroundColor: COLORS.secondaryFixed, borderRadius: RADIUS.xl, padding: SPACING['2xl'] },
-  flashBadge: { backgroundColor: COLORS.onSurface, paddingHorizontal: 8, paddingVertical: 3, borderRadius: RADIUS.full, alignSelf: 'flex-start', marginBottom: SPACING.lg },
-  flashBadgeText: { fontSize: 8, fontWeight: '700', letterSpacing: 1, color: COLORS.white },
-  flashName: { fontSize: 22, fontWeight: '800', color: COLORS.onSurface, marginBottom: SPACING.lg },
-  flashPriceRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-  flashOriginal: { fontSize: 12, color: 'rgba(25,28,30,0.5)', textDecorationLine: 'line-through', marginBottom: 2 },
-  flashPrice: { fontSize: 28, fontWeight: '900', color: COLORS.onSurface },
-  flashCartBtn: { width: 48, height: 48, borderRadius: RADIUS.xl, backgroundColor: COLORS.onSurface, alignItems: 'center', justifyContent: 'center' },
-  flashCartIcon: { fontSize: 20 },
-  starterKitCard: { borderRadius: RADIUS.xl, padding: SPACING['2xl'], alignItems: 'center' },
-  starterKitTitle: { fontSize: 20, fontWeight: '700', color: COLORS.white, fontStyle: 'italic', marginBottom: 8 },
-  starterKitDesc: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', marginBottom: SPACING.xl },
-  starterKitBtn: { backgroundColor: COLORS.white, paddingHorizontal: 32, paddingVertical: 14, borderRadius: RADIUS.full },
-  starterKitBtnText: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
-  inventorySection: { marginTop: SPACING['2xl'] },
-  inventoryHeader: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: SPACING.xl },
-  inventoryTitle: { fontSize: 21, fontWeight: '800', color: COLORS.onSurface, letterSpacing: -0.5 },
-  inventoryLine: { flex: 1, height: 1, backgroundColor: COLORS.surfaceContainerHigh },
-  inventoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  inventoryItem: { width: '48%', backgroundColor: COLORS.surfaceContainerLow, borderRadius: RADIUS.lg, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  inventoryIconWrap: { width: 44, height: 44, borderRadius: RADIUS.md, backgroundColor: COLORS.surfaceContainerLowest, alignItems: 'center', justifyContent: 'center' },
-  inventoryIcon: { fontSize: 18 },
-  inventoryItemName: { fontSize: 13, fontWeight: '700', color: COLORS.onSurface },
-  inventoryItemPrice: { fontSize: 12, color: COLORS.onSurfaceVariant, marginTop: 2 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20 },
+
+  // Section Headers
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  sectionTag: { fontSize: 12, fontWeight: '800', color: '#0f172a', letterSpacing: 2 },
+  countBadge: { backgroundColor: '#6366f1', width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  countText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+
+  // Store Card
+  storeCard: { borderRadius: 20, padding: 24, marginBottom: 16, ...SHADOWS.lg },
+  storeIconWrap: { width: 64, height: 64, borderRadius: 20, backgroundColor: 'rgba(99,102,241,0.15)', alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  storeTitle: { fontSize: 24, fontWeight: '900', color: '#f8fafc', letterSpacing: -0.5, marginBottom: 8 },
+  storeDesc: { fontSize: 14, color: '#94a3b8', lineHeight: 20, marginBottom: 20 },
+  storeLinkRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  storeUrlBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(99,102,241,0.15)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  storeUrlText: { fontSize: 12, fontWeight: '600', color: '#818cf8' },
+  visitBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#6366f1', paddingHorizontal: 18, paddingVertical: 10, borderRadius: 12 },
+  visitBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
+
+  // Quick Links
+  quickLinks: { flexDirection: 'row', gap: 10, marginBottom: 24 },
+  quickCard: { flex: 1, alignItems: 'center', backgroundColor: '#fff', paddingVertical: 16, borderRadius: 16, ...SHADOWS.sm },
+  quickIcon: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  quickLabel: { fontSize: 11, fontWeight: '700', color: '#334155' },
+
+  // Divider
+  divider: { height: 1, backgroundColor: '#e2e8f0', marginBottom: 24 },
+
+  // Lab Info
+  labInfoCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, backgroundColor: '#eef2ff', padding: 14, borderRadius: 14, marginBottom: 16 },
+  labInfoText: { flex: 1, fontSize: 13, color: '#4338ca', lineHeight: 18 },
+
+  // Lab Items
+  labCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 16, marginBottom: 10, gap: 12, ...SHADOWS.sm },
+  labIconWrap: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  labInfo: { flex: 1 },
+  labName: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
+  labMeta: { fontSize: 12, color: '#64748b', marginTop: 2 },
+  labDesc: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
+  labStatusBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10 },
+  labStatusText: { fontSize: 10, fontWeight: '700' },
+
+  // Empty State
+  emptyState: { alignItems: 'center', paddingVertical: 40 },
+  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#334155', marginTop: 12, marginBottom: 4 },
+  emptyDesc: { fontSize: 13, color: '#94a3b8', textAlign: 'center', lineHeight: 18, marginBottom: 20, paddingHorizontal: 20 },
+  orderBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#6366f1', paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14 },
+  orderBtnText: { fontSize: 14, fontWeight: '700', color: '#fff' },
 });
 
 export default StoreScreen;

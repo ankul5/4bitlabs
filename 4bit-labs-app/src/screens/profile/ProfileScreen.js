@@ -8,6 +8,7 @@ import {
   Image,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,11 +16,13 @@ import { MaterialIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { getMyProfile, uploadImage, updateMyProfile } from '../../services/authService';
 
 const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme, COLORS } = useTheme();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -92,18 +95,18 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: COLORS.surface }]}>
       {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: COLORS.surfaceContainerLowest }]}>
         <View style={styles.headerLeft}>
           <TouchableOpacity 
             onPress={() => navigation.goBack()}
-            style={styles.backBtn}
+            style={[styles.backBtn, { backgroundColor: COLORS.surfaceContainerLow }]}
             activeOpacity={0.7}
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Text style={[styles.backIcon, { color: COLORS.primary }]}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.brandText}>4Bit Labs</Text>
+          <Text style={[styles.brandText, { color: COLORS.primary }]}>4Bit Labs</Text>
         </View>
         <View style={styles.headerRightAvatarContainer}>
           <Image 
@@ -140,8 +143,8 @@ const ProfileScreen = ({ navigation }) => {
               )}
             </View>
             <View style={styles.heroTextContent}>
-              <Text style={styles.profileLabel}>SCHOLAR PROFILE</Text>
-              <Text style={styles.profileName}>{displayUser.name}</Text>
+              <Text style={[styles.profileLabel, { color: COLORS.primary }]}>SCHOLAR PROFILE</Text>
+              <Text style={[styles.profileName, { color: COLORS.onSurface }]}>{displayUser.name}</Text>
               <View style={styles.tagsRow}>
                 <View style={styles.tagDefault}>
                   <Text style={styles.tagDefaultText}>ROLE: {(displayUser.role || 'STUDENT').toUpperCase()}</Text>
@@ -157,27 +160,27 @@ const ProfileScreen = ({ navigation }) => {
         {/* Bento Grid layout flattened for mobile */}
         
         {/* Main Details Card */}
-        <View style={styles.detailsCard}>
+        <View style={[styles.detailsCard, { backgroundColor: COLORS.surfaceContainerLowest, borderLeftColor: COLORS.primary }]}>
           <View style={styles.detailsHeader}>
-            <Text style={styles.detailsHeaderIcon}>📋</Text>
-            <Text style={styles.detailsHeaderTitle}>Registration Details</Text>
+            <MaterialIcons name="assignment" size={20} color={COLORS.primary} />
+            <Text style={[styles.detailsHeaderTitle, { color: COLORS.onSurface }]}>Registration Details</Text>
           </View>
           
           <View style={styles.detailsGrid}>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>FULL NAME</Text>
-              <Text style={styles.detailValue}>{displayUser.name}</Text>
+              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>FULL NAME</Text>
+              <Text style={[styles.detailValue, { color: COLORS.onSurface }]}>{displayUser.name}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>STUDENT ID</Text>
-              <Text style={styles.detailValue}>{displayUser._id ? displayUser._id.substring(displayUser._id.length - 8).toUpperCase() : 'N/A'}</Text>
+              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>STUDENT ID</Text>
+              <Text style={[styles.detailValue, { color: COLORS.onSurface }]}>{displayUser._id ? displayUser._id.substring(displayUser._id.length - 8).toUpperCase() : 'N/A'}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>SCHOOL NAME</Text>
-              <Text style={styles.detailValue}>{displayUser.schoolId?.name || 'Not assigned'}</Text>
+              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>SCHOOL NAME</Text>
+              <Text style={[styles.detailValue, { color: COLORS.onSurface }]}>{displayUser.schoolId?.name || 'Not assigned'}</Text>
             </View>
             <View style={styles.detailItem}>
-              <Text style={styles.detailLabel}>COURSES ENROLLED</Text>
+              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>COURSES ENROLLED</Text>
               <Text style={[styles.detailValue, { color: COLORS.primary, fontWeight: '800' }]}>
                 {displayUser.courseIds?.length || 0} Course(s)
               </Text>
@@ -186,7 +189,7 @@ const ProfileScreen = ({ navigation }) => {
 
           <View style={styles.receiptRow}>
             <View style={styles.receiptLeft}>
-              <Text style={styles.calendarIcon}>📅</Text>
+              <MaterialIcons name="date-range" size={20} color={COLORS.tertiary} />
               <View>
                 <Text style={styles.detailLabel}>JOIN DATE</Text>
                 <Text style={styles.receiptDate}>
@@ -196,7 +199,7 @@ const ProfileScreen = ({ navigation }) => {
             </View>
             <TouchableOpacity style={styles.downloadBtn}>
               <Text style={styles.downloadText}>Download Receipt</Text>
-              <Text style={styles.downloadIcon}>↓</Text>
+              <MaterialIcons name="file-download" size={16} color={COLORS.primary} style={{ fontWeight: '800' }} />
             </TouchableOpacity>
           </View>
         </View>
@@ -226,32 +229,38 @@ const ProfileScreen = ({ navigation }) => {
           </View>
           <View style={styles.progressContainer}>
             <View style={styles.progressHeaderRow}>
-              <Text style={styles.progressLabel}>Total Points</Text>
-              <Text style={styles.progressValue}>{displayUser.points || 0}</Text>
+              <Text style={[styles.progressLabel, { color: COLORS.onSurfaceVariant }]}>Total Points</Text>
+              <Text style={[styles.progressValue, { color: COLORS.tertiary }]}>{displayUser.points || 0}</Text>
             </View>
-            <View style={styles.progressBarBg}>
-              <View style={[styles.progressBarFill, { width: `${Math.min(100, ((displayUser.points || 0) / 1000) * 100)}%` }]} />
+            <View style={[styles.progressBarBg, { backgroundColor: COLORS.surfaceContainerHighest }]}>
+              <View style={[styles.progressBarFill, { backgroundColor: COLORS.tertiary, width: `${Math.min(100, ((displayUser.points || 0) / 1000) * 100)}%` }]} />
             </View>
           </View>
         </View>
 
         {/* Quick Links */}
-        <View style={styles.quickLinksCard}>
-          <Text style={styles.quickLinksTitle}>Quick Links</Text>
+        <View style={[styles.quickLinksCard, { backgroundColor: COLORS.surfaceContainerLowest }]}>
+          <Text style={[styles.quickLinksTitle, { color: COLORS.onSurface }]}>Quick Links</Text>
+
+          <View style={[styles.quickLinkItem, { paddingBottom: 16 }]}>
+            <MaterialIcons name="dark-mode" size={24} color={COLORS.onSurfaceVariant} style={{ marginRight: 8 }} />
+            <Text style={[styles.quickLinkText, { flex: 1, color: COLORS.onSurface }]}>Dark Mode</Text>
+            <Switch value={isDark} onValueChange={() => toggleTheme(displayUser._id)} trackColor={{ false: '#767577', true: COLORS.primary }} />
+          </View>
           
           <TouchableOpacity style={styles.quickLinkItem}>
-            <Text style={styles.quickLinkIcon}>❓</Text>
-            <Text style={styles.quickLinkText}>Support Center</Text>
+            <MaterialIcons name="help-outline" size={18} color={COLORS.onSurfaceVariant} />
+            <Text style={[styles.quickLinkText, { color: COLORS.onSurfaceVariant }]}>Support Center</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.quickLinkItem}>
-            <Text style={styles.quickLinkIcon}>🔒</Text>
-            <Text style={styles.quickLinkText}>Privacy Policy</Text>
+            <MaterialIcons name="lock-outline" size={18} color={COLORS.onSurfaceVariant} />
+            <Text style={[styles.quickLinkText, { color: COLORS.onSurfaceVariant }]}>Privacy Policy</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.quickLinkItem} onPress={handleLogout}>
-            <Text style={styles.logoutIcon}>🚪</Text>
-            <Text style={styles.logoutText}>Logout Session</Text>
+            <MaterialIcons name="logout" size={18} color={COLORS.primary} />
+            <Text style={[styles.logoutText, { color: COLORS.primary }]}>Logout Session</Text>
           </TouchableOpacity>
         </View>
 

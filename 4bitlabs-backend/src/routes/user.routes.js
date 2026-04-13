@@ -1,6 +1,6 @@
 const express = require('express');
 const {
-  getUsers, getUser, updateUserRole, deactivateUser, activateUser, getUserStats,
+  getUsers, getUser, updateUserRole, deactivateUser, activateUser, getUserStats, updateMe
 } = require('../controllers/userController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -9,6 +9,9 @@ const { updateUserRoleValidation, validate } = require('../middleware/validators
 const router = express.Router();
 
 // All user management routes require admin access
+
+// PUT  /api/v1/users/me                    — Update own profile
+router.put('/me', protect, updateMe);
 
 // GET  /api/v1/users                     — List all users (paginated, filterable)
 router.get('/', protect, authorize('school_admin', 'super_admin'), getUsers);

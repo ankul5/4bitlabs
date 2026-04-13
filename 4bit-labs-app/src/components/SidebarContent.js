@@ -43,7 +43,7 @@ const SidebarContent = ({ onClose }) => {
       </View>
 
       {/* Profile Card */}
-      <View style={styles.profileCard}>
+      <TouchableOpacity activeOpacity={0.8} onPress={() => navigateTo('Profile')} style={styles.profileCard}>
         <View style={styles.profileHeaderRow}>
           <Image source={{ uri: displayUser.avatar }} style={styles.profileAvatar} />
           <View style={styles.profileTextCol}>
@@ -54,7 +54,7 @@ const SidebarContent = ({ onClose }) => {
         <View style={styles.courseTag}>
           <Text style={styles.courseTagText}>COMPUTER SCIENCE</Text>
         </View>
-      </View>
+      </TouchableOpacity>
 
       {/* Nav Links */}
       <View style={styles.navLinks}>

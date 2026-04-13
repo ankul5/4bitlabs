@@ -7,6 +7,7 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  TextInput,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -181,30 +182,44 @@ const QuizScreen = ({ navigation, route }) => {
           </View>
         )}
 
-        {/* Options */}
-        <View style={styles.optionsContainer}>
-          {question.options.map((option) => {
-            const isSelected = selectedAnswer === option.key;
-            return (
-              <TouchableOpacity
-                key={option.key}
-                style={[styles.optionCard, isSelected && styles.optionCardSelected]}
-                onPress={() => handleSelectAnswer(option.key)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.optionKeyCircle, isSelected && styles.optionKeyCircleSelected]}>
-                  <Text style={[styles.optionKeyText, isSelected && styles.optionKeyTextSelected]}>
-                    {option.key}
+        {/* Options / Written Answer */}
+        {question.type === 'written' ? (
+          <View style={styles.writtenContainer}>
+             <TextInput
+               style={styles.writtenInput}
+               placeholder="Write your answer here..."
+               placeholderTextColor={COLORS.onSurfaceVariant}
+               multiline
+               textAlignVertical="top"
+               value={selectedAnswer || ''}
+               onChangeText={handleSelectAnswer}
+             />
+          </View>
+        ) : (
+          <View style={styles.optionsContainer}>
+            {question.options.map((option) => {
+              const isSelected = selectedAnswer === option.key;
+              return (
+                <TouchableOpacity
+                  key={option.key}
+                  style={[styles.optionCard, isSelected && styles.optionCardSelected]}
+                  onPress={() => handleSelectAnswer(option.key)}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.optionKeyCircle, isSelected && styles.optionKeyCircleSelected]}>
+                    <Text style={[styles.optionKeyText, isSelected && styles.optionKeyTextSelected]}>
+                      {option.key}
+                    </Text>
+                  </View>
+                  <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+                    {option.text}
                   </Text>
-                </View>
-                <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
-                  {option.text}
-                </Text>
-                {isSelected && <Text style={styles.checkMark}>✓</Text>}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+                  {isSelected && <Text style={styles.checkMark}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
       {/* Footer */}
@@ -273,6 +288,8 @@ const styles = StyleSheet.create({
   nextButtonArrow: { color: COLORS.white, fontSize: 20, fontWeight: '700' },
   decorTop: { position: 'absolute', top: 80, right: -30, width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(186,0,19,0.03)', zIndex: -1 },
   decorBottom: { position: 'absolute', bottom: 80, left: -40, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(0,97,144,0.03)', zIndex: -1 },
+  writtenContainer: { flex: 1, minHeight: 200, marginTop: SPACING.md },
+  writtenInput: { flex: 1, backgroundColor: COLORS.surfaceContainerLowest, borderRadius: RADIUS.lg, padding: SPACING.lg, fontSize: 16, color: COLORS.onSurface, borderWidth: 2, borderColor: COLORS.surfaceContainerHigh, textAlignVertical: 'top' },
 });
 
 export default QuizScreen;

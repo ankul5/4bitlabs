@@ -12,13 +12,13 @@ router.get('/', getSchools);
 // GET  /api/v1/schools/:id     — Public
 router.get('/:id', getSchool);
 
-// POST /api/v1/schools         — Super admin only
-router.post('/', protect, authorize('super_admin'), createSchoolValidation, validate, createSchool);
+// POST /api/v1/schools         — Super admin/Mentor create school
+router.post('/', protect, authorize('super_admin', 'mentor'), createSchoolValidation, validate, createSchool);
 
-// PUT  /api/v1/schools/:id     — Super admin or school admin
-router.put('/:id', protect, authorize('super_admin', 'school_admin'), updateSchool);
+// PUT  /api/v1/schools/:id     — Super admin/Mentor update school
+router.put('/:id', protect, authorize('super_admin', 'school_admin', 'mentor'), updateSchool);
 
-// DELETE /api/v1/schools/:id   — Super admin only
-router.delete('/:id', protect, authorize('super_admin'), deleteSchool);
+// DELETE /api/v1/schools/:id   — Super admin/Mentor delete school
+router.delete('/:id', protect, authorize('super_admin', 'mentor'), deleteSchool);
 
 module.exports = router;

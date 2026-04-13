@@ -1,14 +1,10 @@
 const School = require('../models/School');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 
-// ─── GET /api/v1/schools ────────────────────────────────────────────────────
-// Public — used in registration dropdown
+// ─── GET /api/v1/schools ─────────────────────────────────────────────────────
 const getSchools = async (req, res, next) => {
   try {
-    const schools = await School.find({ isActive: true })
-      .select('name code city state logo studentCount')
-      .sort({ name: 1 })
-      .lean();
+    const schools = await School.find({ is_active: true });
     res.json(successResponse('Schools fetched.', { schools, count: schools.length }));
   } catch (error) {
     next(error);
@@ -18,9 +14,7 @@ const getSchools = async (req, res, next) => {
 // ─── GET /api/v1/schools/:id ─────────────────────────────────────────────────
 const getSchool = async (req, res, next) => {
   try {
-    const school = await School.findById(req.params.id)
-      .populate('courses', 'title thumbnailUrl enrolledCount')
-      .lean();
+    const school = await School.findById(req.params.id);
     if (!school) return res.status(404).json(errorResponse('School not found.'));
     res.json(successResponse('School fetched.', { school }));
   } catch (error) {
@@ -28,21 +22,22 @@ const getSchool = async (req, res, next) => {
   }
 };
 
-// ─── POST /api/v1/schools — admin only ───────────────────────────────────────
+// ─── POST /api/v1/schools ────────────────────────────────────────────────────
 const createSchool = async (req, res, next) => {
   try {
+    const userId = req.user._id || req.user.id;
     const { name, code, address, city, state } = req.body;
-    const school = await School.create({ name, code, address, city, state, adminId: req.user._id });
+    const school = await School.create({ name, code, address, city, state, admin_id: userId });
     res.status(201).json(successResponse('School created.', { school }));
   } catch (error) {
     next(error);
   }
 };
 
-// ─── PUT /api/v1/schools/:id — admin only ────────────────────────────────────
+// ─── PUT /api/v1/schools/:id ─────────────────────────────────────────────────
 const updateSchool = async (req, res, next) => {
   try {
-    const school = await School.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const school = await School.findByIdAndUpdate(req.params.id, req.body);
     if (!school) return res.status(404).json(errorResponse('School not found.'));
     res.json(successResponse('School updated.', { school }));
   } catch (error) {
@@ -50,7 +45,7 @@ const updateSchool = async (req, res, next) => {
   }
 };
 
-// ─── DELETE /api/v1/schools/:id — super admin only ──────────────────────────
+// ─── DELETE /api/v1/schools/:id ──────────────────────────────────────────────
 const deleteSchool = async (req, res, next) => {
   try {
     const school = await School.findByIdAndDelete(req.params.id);

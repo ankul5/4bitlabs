@@ -1,10 +1,8 @@
-const admin = require('../config/firebase-admin');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 /**
  * Protect routes — verifies JWT issued by our backend.
- * Attaches req.user = { _id, uid, role, schoolId } to the request.
  */
 const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -17,7 +15,7 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ uid: decoded.uid }).select('-__v');
+    const user = await User.findByUid(decoded.uid);
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'User no longer exists.' });
@@ -37,7 +35,7 @@ const protect = async (req, res, next) => {
 };
 
 /**
- * Optional auth — attaches req.user if a valid token is present, but does not block if absent.
+ * Optional auth — attaches req.user if token present, but does not block if absent.
  */
 const optionalAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -46,7 +44,7 @@ const optionalAuth = async (req, res, next) => {
   try {
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ uid: decoded.uid }).select('-__v');
+    const user = await User.findByUid(decoded.uid);
     if (user) req.user = user;
   } catch (_err) {
     // Silently ignore invalid tokens for optional auth

@@ -1,7 +1,7 @@
 // 4Bit Labs Design System — "The Precise Catalyst"
 // Based on DESIGN.md: Editorial Scholar design system
 
-export const COLORS = {
+export const LIGHT_COLORS = {
   // Primary Palette
   primary: '#ba0013',
   primaryContainer: '#e31e24',
@@ -64,6 +64,27 @@ export const COLORS = {
   success: '#22c55e',
   warning: '#f59e0b',
 };
+
+export const DARK_COLORS = {
+  ...LIGHT_COLORS,
+  surface: '#121212',
+  surfaceContainerLowest: '#1e1e1e',
+  surfaceContainerLow: '#242424',
+  surfaceContainer: '#2c2c2c',
+  surfaceContainerHigh: '#323232',
+  surfaceContainerHighest: '#383838',
+
+  onSurface: '#e1e3e4',
+  onSurfaceVariant: '#a89d9c',
+  onBackground: '#e1e3e4',
+  
+  background: '#121212',
+  
+  inverseSurface: '#e1e3e4',
+  inverseOnSurface: '#191c1e',
+};
+
+export const COLORS = LIGHT_COLORS;
 
 export const FONTS = {
   headline: 'Manrope',

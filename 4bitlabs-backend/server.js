@@ -7,7 +7,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
-const connectDB = require('./src/config/database');
+const { connectDB } = require('./src/config/database');
 const { errorHandler, notFound } = require('./src/middleware/errorMiddleware');
 const { registerSocketHandlers } = require('./src/sockets');
 
@@ -25,6 +25,9 @@ const enrollmentRoutes = require('./src/routes/enrollment.routes');
 const announcementRoutes = require('./src/routes/announcement.routes');
 const userRoutes = require('./src/routes/user.routes');
 const aiRoutes = require('./src/routes/ai.routes');
+const chatRoutes = require('./src/routes/chat.routes');
+const labRoutes = require('./src/routes/lab.routes');
+const adminRoutes = require('./src/routes/admin.routes');
 
 // ─── App Setup ─────────────────────────────────────────────────────────────────
 const app = express();
@@ -48,7 +51,8 @@ registerSocketHandlers(io);
 connectDB();
 
 // ─── Global Middleware ────────────────────────────────────────────────────────
-app.use(helmet());
+app.use('/uploads', express.static('public/uploads'));
+app.use(helmet({ crossOriginResourcePolicy: false })); // allow images/videos to be requested from frontend
 app.use(cors({
   origin: process.env.CLIENT_URL || '*',
   credentials: true,
@@ -89,6 +93,9 @@ app.use('/api/v1/enrollments', enrollmentRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/chat', chatRoutes);
+app.use('/api/v1/labs', labRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {

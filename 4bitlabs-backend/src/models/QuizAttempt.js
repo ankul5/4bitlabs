@@ -1,33 +1,55 @@
-const mongoose = require('mongoose');
+const { pool } = require('../config/database');
 
-const answerSchema = new mongoose.Schema({
-  questionId: mongoose.Schema.Types.ObjectId,
-  selectedAnswer: String,   // e.g. 'A'
-  correctAnswer: String,
-  isCorrect: Boolean,
-  pointsEarned: Number,
-});
-
-const quizAttemptSchema = new mongoose.Schema(
-  {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true, index: true },
-    courseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
-    schoolId: { type: mongoose.Schema.Types.ObjectId, ref: 'School', required: true },
-    answers: [answerSchema],
-    score: { type: Number, default: 0 },          // number of correct answers
-    totalPoints: { type: Number, default: 0 },    // points earned (score * points per question)
-    maxPoints: { type: Number, default: 0 },      // max achievable points for this quiz
-    percentage: { type: Number, default: 0 },
-    passed: { type: Boolean, default: false },
-    timeTakenSeconds: { type: Number, default: 0 },
-    completedAt: { type: Date, default: Date.now },
-    attemptNumber: { type: Number, default: 1 },
+const QuizAttempt = {
+  async find(filter = {}) {
+    let q = `SELECT qa.*, u.name as user_name, u.email as user_email, u.avatar as user_avatar FROM quiz_attempts qa LEFT JOIN users u ON qa.user_id = u.id WHERE 1=1`;
+    const vals = [];
+    let i = 1;
+    if (filter.user_id) { q += ` AND qa.user_id = $${i++}`; vals.push(filter.user_id); }
+    if (filter.quiz_id) { q += ` AND qa.quiz_id = $${i++}`; vals.push(filter.quiz_id); }
+    if (filter.quiz_ids) { q += ` AND qa.quiz_id = ANY($${i++}::uuid[])`; vals.push(filter.quiz_ids); }
+    q += ' ORDER BY qa.completed_at DESC';
+    if (filter.limit) { q += ` LIMIT $${i++}`; vals.push(filter.limit); }
+    if (filter.offset) { q += ` OFFSET $${i++}`; vals.push(filter.offset); }
+    const { rows } = await pool.query(q, vals);
+    return rows.map(formatAttempt);
   },
-  { timestamps: true }
-);
 
-// Compound index — one attempt record per user per quiz per attempt number
-quizAttemptSchema.index({ userId: 1, quizId: 1, attemptNumber: 1 }, { unique: true });
+  async countDocuments(filter = {}) {
+    let q = 'SELECT COUNT(*) FROM quiz_attempts WHERE 1=1';
+    const vals = [];
+    let i = 1;
+    if (filter.user_id) { q += ` AND user_id = $${i++}`; vals.push(filter.user_id); }
+    if (filter.quiz_id) { q += ` AND quiz_id = $${i++}`; vals.push(filter.quiz_id); }
+    const { rows } = await pool.query(q, vals);
+    return parseInt(rows[0].count);
+  },
 
-module.exports = mongoose.model('QuizAttempt', quizAttemptSchema);
+  async create(data) {
+    const { user_id, quiz_id, course_id, school_id, answers, score, total_points, max_points, percentage, passed, time_taken_seconds, attempt_number, status } = data;
+    const { rows } = await pool.query(
+      `INSERT INTO quiz_attempts (user_id, quiz_id, course_id, school_id, answers, score, total_points, max_points, percentage, passed, time_taken_seconds, attempt_number, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [user_id, quiz_id, course_id, school_id, JSON.stringify(answers), score, total_points, max_points, percentage, passed, time_taken_seconds || 0, attempt_number || 1, status || 'completed']
+    );
+    return formatAttempt(rows[0]);
+  },
+
+  async deleteMany(filter = {}) {
+    if (filter.quiz_id) {
+      await pool.query('DELETE FROM quiz_attempts WHERE quiz_id = $1', [filter.quiz_id]);
+    }
+  },
+};
+
+function formatAttempt(row) {
+  return {
+    _id: row.id, id: row.id, userId: row.user_id, quizId: row.quiz_id, courseId: row.course_id, schoolId: row.school_id,
+    answers: row.answers || [], score: row.score, totalPoints: row.total_points, maxPoints: row.max_points,
+    percentage: parseFloat(row.percentage), passed: row.passed, timeTakenSeconds: row.time_taken_seconds,
+    attemptNumber: row.attempt_number, status: row.status, completedAt: row.completed_at,
+    userId: row.user_id && row.user_name ? { _id: row.user_id, name: row.user_name, email: row.user_email, avatar: row.user_avatar } : row.user_id,
+  };
+}
+
+module.exports = QuizAttempt;

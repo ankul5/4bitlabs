@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   View,
   Text,
@@ -134,8 +135,13 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         {/* Footer */}
+        <View style={styles.mentorHint}>
+          <MaterialIcons name="admin-panel-settings" size={16} color="#6366f1" />
+          <Text style={styles.mentorHintText}>Mentors & Teachers: Login with your admin credentials</Text>
+        </View>
+
         <View style={styles.footer}>
-          <Text style={styles.footerText}>PRECISION EDUCATIONAL SYSTEMS © 2024</Text>
+          <Text style={styles.footerText}>4BIT LABS © 2026</Text>
         </View>
       </ScrollView>
 
@@ -302,6 +308,22 @@ const styles = StyleSheet.create({
     height: 250,
     borderRadius: 125,
     backgroundColor: 'rgba(0, 97, 144, 0.03)',
+  },
+  mentorHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    backgroundColor: '#eef2ff',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  mentorHintText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6366f1',
   },
 });
 
