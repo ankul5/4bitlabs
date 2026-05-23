@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,9 @@ import {
   Alert,
   ActivityIndicator,
   Switch,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,24 +26,41 @@ const ProfileScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { isDark, toggleTheme, COLORS } = useTheme();
-  const [profile, setProfile] = useState(null);
+  
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [avatarObj, setAvatarObj] = useState(null); // to hold selected local image uri
+  
+  // Editable form state
+  const [form, setForm] = useState({
+    name: '',
+    email: '',
+    avatarUrl: '',
+  });
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchProfile = async () => {
       try {
         const data = await getMyProfile();
-        setProfile(data);
+        setForm({
+          name: data?.name || user?.name || '',
+          email: data?.email || user?.email || '',
+          avatarUrl: data?.avatar || user?.avatar || '',
+        });
       } catch (error) {
         console.warn('Failed to fetch profile:', error);
+        // Fallback to user context
+        setForm({
+          name: user?.name || '',
+          email: user?.email || '',
+          avatarUrl: user?.avatar || '',
+        });
       } finally {
         setLoading(false);
       }
     };
     fetchProfile();
-  }, []);
-
-  const displayUser = profile || user || {};
+  }, [user]);
 
   const handleImageOption = () => {
     Alert.alert(
@@ -73,47 +93,73 @@ const ProfileScreen = ({ navigation }) => {
       }
 
       if (!result.canceled && result.assets[0]) {
-        setLoading(true);
-        const uploadRes = await uploadImage(result.assets[0].uri);
-        if (uploadRes.data && uploadRes.data.url) {
-           await updateMyProfile({ avatar: uploadRes.data.url });
-           const updated = await getMyProfile();
-           setProfile(updated);
-        }
+        setAvatarObj(result.assets[0].uri);
       }
     } catch (error) {
-      console.warn('Image upload error:', error);
-      Alert.alert('Error', 'Failed to upload image. Please try again.');
+      console.warn('Image picker error:', error);
+      Alert.alert('Error', 'Failed to pick image.');
+    }
+  };
+
+  const handleSave = async () => {
+    if (!form.name || !form.email) {
+      Alert.alert('Error', 'Name and Email are required.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      let latestAvatarUrl = form.avatarUrl;
+
+      // If a new local image was selected, upload it first
+      if (avatarObj) {
+        const uploadRes = await uploadImage(avatarObj);
+        if (uploadRes.url || (uploadRes.data && uploadRes.data.url)) {
+          latestAvatarUrl = uploadRes.url || uploadRes.data.url;
+        }
+      }
+
+      // Update profile details
+      await updateMyProfile({
+        name: form.name,
+        email: form.email,
+        avatar: latestAvatarUrl,
+      });
+
+      Alert.alert('Success', 'Profile updated successfully.');
+      setForm(prev => ({ ...prev, avatarUrl: latestAvatarUrl }));
+      setAvatarObj(null); // clear local preview
+      
+    } catch (error) {
+      console.warn('Profile update error:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   const handleLogout = () => {
     logout();
-    // Assuming AppNavigator handles auth state routing automatically
   };
 
+  const displayAvatar = avatarObj || form.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(form.name || 'U')}`;
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.container, { backgroundColor: COLORS.surface }]}>
+    <KeyboardAvoidingView 
+      style={[styles.container, { backgroundColor: COLORS.surface }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8, backgroundColor: COLORS.surfaceContainerLowest }]}>
-        <View style={styles.headerLeft}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            style={[styles.backBtn, { backgroundColor: COLORS.surfaceContainerLow }]}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.backIcon, { color: COLORS.primary }]}>←</Text>
-          </TouchableOpacity>
-          <Text style={[styles.brandText, { color: COLORS.primary }]}>4Bit Labs</Text>
-        </View>
-        <View style={styles.headerRightAvatarContainer}>
-          <Image 
-            source={{ uri: displayUser.profileUrl || displayUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser.name || 'U')}` }} 
-            style={styles.headerAvatar} 
-          />
-        </View>
+        <Text style={[styles.brandText, { color: COLORS.primary }]}>Profile</Text>
       </View>
 
       <ScrollView 
@@ -125,7 +171,7 @@ const ProfileScreen = ({ navigation }) => {
           <View style={styles.heroRow}>
             <View style={styles.mainAvatarContainer}>
               <Image 
-                source={{ uri: displayUser.profileUrl || displayUser.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser.name || 'U')}` }} 
+                source={{ uri: displayAvatar }} 
                 style={styles.mainAvatar} 
               />
               <TouchableOpacity style={styles.editBtn} activeOpacity={0.8} onPress={handleImageOption}>
@@ -133,216 +179,106 @@ const ProfileScreen = ({ navigation }) => {
                   colors={[COLORS.primary, COLORS.primaryContainer]}
                   style={styles.editBtnGradient}
                 >
-                  <MaterialIcons name="edit" size={14} color="#fff" style={styles.editIcon} />
+                  <MaterialIcons name="camera-alt" size={16} color="#fff" />
                 </LinearGradient>
               </TouchableOpacity>
-              {loading && (
-                <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: 999, justifyContent: 'center', alignItems: 'center' }]}>
-                  <ActivityIndicator color={COLORS.primary} />
-                </View>
-              )}
-            </View>
-            <View style={styles.heroTextContent}>
-              <Text style={[styles.profileLabel, { color: COLORS.primary }]}>SCHOLAR PROFILE</Text>
-              <Text style={[styles.profileName, { color: COLORS.onSurface }]}>{displayUser.name}</Text>
-              <View style={styles.tagsRow}>
-                <View style={styles.tagDefault}>
-                  <Text style={styles.tagDefaultText}>ROLE: {(displayUser.role || 'STUDENT').toUpperCase()}</Text>
-                </View>
-                <View style={styles.tagPrimary}>
-                  <Text style={styles.tagPrimaryText}>Computer Science</Text>
-                </View>
-              </View>
             </View>
           </View>
         </View>
 
-        {/* Bento Grid layout flattened for mobile */}
-        
-        {/* Main Details Card */}
-        <View style={[styles.detailsCard, { backgroundColor: COLORS.surfaceContainerLowest, borderLeftColor: COLORS.primary }]}>
-          <View style={styles.detailsHeader}>
-            <MaterialIcons name="assignment" size={20} color={COLORS.primary} />
-            <Text style={[styles.detailsHeaderTitle, { color: COLORS.onSurface }]}>Registration Details</Text>
-          </View>
+        {/* Editable Form */}
+        <View style={[styles.formCard, { backgroundColor: COLORS.surfaceContainerLowest }]}>
+          <Text style={[styles.sectionTitle, { color: COLORS.onSurface }]}>Personal Details</Text>
           
-          <View style={styles.detailsGrid}>
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>FULL NAME</Text>
-              <Text style={[styles.detailValue, { color: COLORS.onSurface }]}>{displayUser.name}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>STUDENT ID</Text>
-              <Text style={[styles.detailValue, { color: COLORS.onSurface }]}>{displayUser._id ? displayUser._id.substring(displayUser._id.length - 8).toUpperCase() : 'N/A'}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>SCHOOL NAME</Text>
-              <Text style={[styles.detailValue, { color: COLORS.onSurface }]}>{displayUser.schoolId?.name || 'Not assigned'}</Text>
-            </View>
-            <View style={styles.detailItem}>
-              <Text style={[styles.detailLabel, { color: COLORS.onSurfaceVariant }]}>COURSES ENROLLED</Text>
-              <Text style={[styles.detailValue, { color: COLORS.primary, fontWeight: '800' }]}>
-                {displayUser.courseIds?.length || 0} Course(s)
-              </Text>
-            </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: COLORS.onSurfaceVariant }]}>FULL NAME</Text>
+            <TextInput
+              style={[styles.input, { color: COLORS.onSurface, borderColor: COLORS.surfaceContainerHighest }]}
+              value={form.name}
+              onChangeText={(text) => setForm(prev => ({ ...prev, name: text }))}
+              placeholder="Enter your name"
+              placeholderTextColor={COLORS.onSurfaceVariant + '80'}
+            />
           </View>
 
-          <View style={styles.receiptRow}>
-            <View style={styles.receiptLeft}>
-              <MaterialIcons name="date-range" size={20} color={COLORS.tertiary} />
-              <View>
-                <Text style={styles.detailLabel}>JOIN DATE</Text>
-                <Text style={styles.receiptDate}>
-                  {displayUser.createdAt ? new Date(displayUser.createdAt).toLocaleDateString() : 'N/A'}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity style={styles.downloadBtn}>
-              <Text style={styles.downloadText}>Download Receipt</Text>
-              <MaterialIcons name="file-download" size={16} color={COLORS.primary} style={{ fontWeight: '800' }} />
-            </TouchableOpacity>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, { color: COLORS.onSurfaceVariant }]}>EMAIL ADDRESS</Text>
+            <TextInput
+              style={[styles.input, { color: COLORS.onSurface, borderColor: COLORS.surfaceContainerHighest }]}
+              value={form.email}
+              onChangeText={(text) => setForm(prev => ({ ...prev, email: text }))}
+              placeholder="Enter your email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              placeholderTextColor={COLORS.onSurfaceVariant + '80'}
+            />
           </View>
         </View>
 
         {/* Action Buttons */}
         <View style={styles.actionButtonsRow}>
-          <TouchableOpacity style={styles.primaryActionBtn} activeOpacity={0.9} onPress={handleImageOption}>
+          <TouchableOpacity 
+            style={styles.primaryActionBtn} 
+            activeOpacity={0.9} 
+            onPress={handleSave}
+            disabled={saving}
+          >
             <LinearGradient
               colors={[COLORS.primary, COLORS.primaryContainer]}
               style={styles.primaryActionGradient}
             >
-              <Text style={styles.primaryActionText}>Update Photo</Text>
+              {saving ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.primaryActionText}>Save Changes</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
+          
           <TouchableOpacity style={styles.secondaryActionBtn} activeOpacity={0.7} onPress={handleLogout}>
-            <Text style={styles.secondaryActionText}>Logout</Text>
+            <Text style={[styles.secondaryActionText, { color: COLORS.error || '#ef4444' }]}>Logout</Text>
           </TouchableOpacity>
-        </View>
-
-        {/* Status Card */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeaderRow}>
-            <Text style={styles.statusTitle}>Status</Text>
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusBadgeText}>ACTIVE</Text>
-            </View>
-          </View>
-          <View style={styles.progressContainer}>
-            <View style={styles.progressHeaderRow}>
-              <Text style={[styles.progressLabel, { color: COLORS.onSurfaceVariant }]}>Total Points</Text>
-              <Text style={[styles.progressValue, { color: COLORS.tertiary }]}>{displayUser.points || 0}</Text>
-            </View>
-            <View style={[styles.progressBarBg, { backgroundColor: COLORS.surfaceContainerHighest }]}>
-              <View style={[styles.progressBarFill, { backgroundColor: COLORS.tertiary, width: `${Math.min(100, ((displayUser.points || 0) / 1000) * 100)}%` }]} />
-            </View>
-          </View>
         </View>
 
         {/* Quick Links */}
         <View style={[styles.quickLinksCard, { backgroundColor: COLORS.surfaceContainerLowest }]}>
-          <Text style={[styles.quickLinksTitle, { color: COLORS.onSurface }]}>Quick Links</Text>
+          <Text style={[styles.quickLinksTitle, { color: COLORS.onSurface }]}>Preferences</Text>
 
-          <View style={[styles.quickLinkItem, { paddingBottom: 16 }]}>
+          <View style={[styles.quickLinkItem]}>
             <MaterialIcons name="dark-mode" size={24} color={COLORS.onSurfaceVariant} style={{ marginRight: 8 }} />
             <Text style={[styles.quickLinkText, { flex: 1, color: COLORS.onSurface }]}>Dark Mode</Text>
-            <Switch value={isDark} onValueChange={() => toggleTheme(displayUser._id)} trackColor={{ false: '#767577', true: COLORS.primary }} />
+            <Switch value={isDark} onValueChange={() => toggleTheme(user?._id || user?.id)} trackColor={{ false: '#767577', true: COLORS.primary }} />
           </View>
-          
-          <TouchableOpacity style={styles.quickLinkItem}>
-            <MaterialIcons name="help-outline" size={18} color={COLORS.onSurfaceVariant} />
-            <Text style={[styles.quickLinkText, { color: COLORS.onSurfaceVariant }]}>Support Center</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.quickLinkItem}>
-            <MaterialIcons name="lock-outline" size={18} color={COLORS.onSurfaceVariant} />
-            <Text style={[styles.quickLinkText, { color: COLORS.onSurfaceVariant }]}>Privacy Policy</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.quickLinkItem} onPress={handleLogout}>
-            <MaterialIcons name="logout" size={18} color={COLORS.primary} />
-            <Text style={[styles.logoutText, { color: COLORS.primary }]}>Logout Session</Text>
-          </TouchableOpacity>
         </View>
 
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.surface,
-  },
+  container: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
     paddingHorizontal: SPACING.xl,
     paddingBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.85)',
     ...SHADOWS.sm,
     zIndex: 10,
-  },
-  headerLeft: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
   },
-  backBtn: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: COLORS.surfaceContainerLow,
-  },
-  backIcon: {
-    fontSize: 20,
-    color: COLORS.primary,
-    fontWeight: '700',
-  },
-  brandText: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: COLORS.primary,
-    letterSpacing: -0.5,
-  },
-  headerRightAvatarContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: COLORS.primary,
-    overflow: 'hidden',
-  },
-  headerAvatar: {
-    width: '100%',
-    height: '100%',
-  },
-  scrollContent: {
-    padding: SPACING.xl,
-    paddingTop: SPACING['2xl'],
-  },
-  heroSection: {
-    marginBottom: SPACING['2xl'],
-  },
-  heroRow: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: 20,
-  },
+  brandText: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
+  scrollContent: { padding: SPACING.xl, paddingTop: SPACING['2xl'] },
+  heroSection: { marginBottom: SPACING['2xl'] },
+  heroRow: { alignItems: 'center' },
   mainAvatarContainer: {
     position: 'relative',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     borderWidth: 4,
-    borderColor: COLORS.surfaceContainerLowest,
+    borderColor: 'transparent',
     ...SHADOWS.md,
   },
-  mainAvatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 70,
-  },
+  mainAvatar: { width: '100%', height: '100%', borderRadius: 60 },
   editBtn: {
     position: 'absolute',
     bottom: 0,
@@ -350,6 +286,8 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderWidth: 3,
+    borderColor: '#ffffff',
     ...SHADOWS.sm,
   },
   editBtnGradient: {
@@ -359,263 +297,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  editIcon: {
-    fontSize: 16,
-  },
-  heroTextContent: {
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-  profileLabel: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: COLORS.primary,
-    letterSpacing: 1,
-    marginBottom: 4,
-  },
-  profileName: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: COLORS.onSurface,
-    letterSpacing: -1,
-    marginBottom: 12,
-  },
-  tagsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  tagDefault: {
-    backgroundColor: COLORS.surfaceContainerHighest,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-  },
-  tagDefaultText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.onSurfaceVariant,
-    letterSpacing: 0.5,
-  },
-  tagPrimary: {
-    backgroundColor: 'rgba(0, 97, 144, 0.1)',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: RADIUS.full,
-  },
-  tagPrimaryText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.tertiary,
-    letterSpacing: 0.5,
-  },
-  detailsCard: {
-    backgroundColor: COLORS.surfaceContainerLowest,
+  formCard: {
     borderRadius: RADIUS.xl,
     padding: SPACING.xl,
-    borderLeftWidth: 4,
-    borderLeftColor: COLORS.primary,
+    marginBottom: SPACING.xl,
     ...SHADOWS.sm,
-    marginBottom: SPACING.xl,
   },
-  detailsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: SPACING.xl,
-  },
-  detailsHeaderIcon: {
-    fontSize: 20,
-    color: COLORS.primary,
-  },
-  detailsHeaderTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: COLORS.onSurface,
-  },
-  detailsGrid: {
-    gap: 20,
-  },
-  detailItem: {
-    gap: 4,
-  },
-  detailLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: COLORS.onSurfaceVariant,
-    letterSpacing: 1.5,
-  },
-  detailValue: {
+  sectionTitle: { fontSize: 18, fontWeight: '800', marginBottom: SPACING.lg },
+  inputGroup: { marginBottom: SPACING.lg },
+  label: { fontSize: 11, fontWeight: '800', letterSpacing: 1, marginBottom: 8 },
+  input: {
+    borderWidth: 1,
+    borderRadius: RADIUS.lg,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.onSurface,
+    fontWeight: '500',
   },
-  receiptRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: SPACING['2xl'],
-    paddingTop: SPACING.lg,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceContainerLow,
-  },
-  receiptLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  calendarIcon: {
-    fontSize: 20,
-    color: COLORS.tertiary,
-  },
-  receiptDate: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.onSurface,
-    marginTop: 2,
-  },
-  downloadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  downloadText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  downloadIcon: {
-    fontSize: 14,
-    color: COLORS.primary,
-    fontWeight: '800',
-  },
-  actionButtonsRow: {
-    flexDirection: 'column',
-    gap: 12,
-    marginBottom: SPACING.xl,
-  },
-  primaryActionBtn: {
-    borderRadius: RADIUS.full,
-    ...SHADOWS.primaryGlow,
-  },
-  primaryActionGradient: {
-    paddingVertical: 16,
-    borderRadius: RADIUS.full,
-    alignItems: 'center',
-  },
-  primaryActionText: {
-    color: COLORS.white,
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  actionButtonsRow: { gap: 12, marginBottom: SPACING.xl },
+  primaryActionBtn: { borderRadius: RADIUS.full, ...SHADOWS.primaryGlow },
+  primaryActionGradient: { paddingVertical: 16, borderRadius: RADIUS.full, alignItems: 'center', justifyContent: 'center' },
+  primaryActionText: { color: '#ffffff', fontSize: 16, fontWeight: '800' },
   secondaryActionBtn: {
-    backgroundColor: COLORS.surfaceContainerHighest,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     paddingVertical: 16,
     borderRadius: RADIUS.full,
     alignItems: 'center',
   },
-  secondaryActionText: {
-    color: COLORS.onSurfaceVariant,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  statusCard: {
-    backgroundColor: COLORS.surfaceContainerLow,
-    borderRadius: RADIUS.xl,
-    padding: SPACING.xl,
-    marginBottom: SPACING.xl,
-  },
-  statusHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  statusTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORS.onSurface,
-  },
-  statusBadge: {
-    backgroundColor: '#dcfce7', // green-100
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: RADIUS.full,
-  },
-  statusBadgeText: {
-    fontSize: 10,
-    fontWeight: '900',
-    color: '#166534', // green-800
-    letterSpacing: 0.5,
-  },
-  progressContainer: {
-    gap: 8,
-  },
-  progressHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.onSurfaceVariant,
-  },
-  progressValue: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.tertiary,
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: COLORS.surfaceContainerHighest,
-    borderRadius: RADIUS.full,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: COLORS.tertiary,
-    borderRadius: RADIUS.full,
-  },
+  secondaryActionText: { fontSize: 16, fontWeight: '700' },
   quickLinksCard: {
-    backgroundColor: COLORS.surfaceContainerLowest,
     borderRadius: RADIUS.xl,
     padding: SPACING.xl,
     borderWidth: 1,
     borderColor: 'rgba(229, 229, 229, 0.5)',
     ...SHADOWS.sm,
   },
-  quickLinksTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: COLORS.onSurface,
-    marginBottom: SPACING.lg,
-  },
-  quickLinkItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-  },
-  quickLinkIcon: {
-    fontSize: 18,
-    color: COLORS.onSurfaceVariant,
-  },
-  quickLinkText: {
-    fontSize: 14,
-    color: COLORS.onSurfaceVariant,
-    fontWeight: '500',
-  },
-  logoutIcon: {
-    fontSize: 18,
-    color: COLORS.primary,
-  },
-  logoutText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
+  quickLinksTitle: { fontSize: 15, fontWeight: '800', marginBottom: SPACING.lg },
+  quickLinkItem: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  quickLinkText: { fontSize: 14, fontWeight: '500' },
 });
 
 export default ProfileScreen;

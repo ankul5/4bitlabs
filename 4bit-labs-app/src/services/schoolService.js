@@ -6,7 +6,7 @@ import api from './api';
  */
 export const getSchools = async () => {
   const res = await api.get('/schools');
-  return res.data.schools;
+  return res.data?.data?.schools || [];
 };
 
 /**
@@ -14,5 +14,5 @@ export const getSchools = async () => {
  */
 export const getSchool = async (schoolId) => {
   const res = await api.get(`/schools/${schoolId}`);
-  return res.data.school;
+  return res.data?.data?.school || null;
 };

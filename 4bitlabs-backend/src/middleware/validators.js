@@ -3,19 +3,20 @@ const { body, param, query } = require('express-validator');
 // ─── Course Validators ────────────────────────────────────────────────────────
 const createCourseValidation = [
   body('title').notEmpty().trim().withMessage('Course title is required.'),
-  body('schoolId').notEmpty().isMongoId().withMessage('Valid schoolId is required.'),
+  body('schoolId').optional().isUUID().withMessage('Valid schoolId is required.'),
+  body('school_id').optional().isUUID().withMessage('Valid school_id is required.'),
   body('description').optional().trim(),
   body('category').optional().trim(),
 ];
 
 const updateCourseValidation = [
-  param('id').isMongoId().withMessage('Valid course ID is required.'),
+  param('id').isUUID().withMessage('Valid course ID is required.'),
   body('title').optional().trim(),
   body('description').optional().trim(),
 ];
 
 const addLectureValidation = [
-  param('id').isMongoId().withMessage('Valid course ID is required.'),
+  param('id').isUUID().withMessage('Valid course ID is required.'),
   body('title').notEmpty().trim().withMessage('Lecture title is required.'),
   body('videoUrl').optional().trim(),
   body('duration').optional().trim(),
@@ -24,8 +25,8 @@ const addLectureValidation = [
 // ─── Quiz Validators ─────────────────────────────────────────────────────────
 const createQuizValidation = [
   body('title').notEmpty().trim().withMessage('Quiz title is required.'),
-  body('courseId').notEmpty().isMongoId().withMessage('Valid courseId is required.'),
-  body('schoolId').notEmpty().isMongoId().withMessage('Valid schoolId is required.'),
+  body('courseId').notEmpty().isUUID().withMessage('Valid courseId is required.'),
+  body('schoolId').notEmpty().isUUID().withMessage('Valid schoolId is required.'),
   body('questions').isArray({ min: 1 }).withMessage('At least one question is required.'),
   body('questions.*.question').notEmpty().withMessage('Question text is required.'),
   body('questions.*.options').isArray({ min: 2 }).withMessage('At least 2 options are required.'),
@@ -34,7 +35,7 @@ const createQuizValidation = [
 ];
 
 const submitQuizValidation = [
-  param('id').isMongoId().withMessage('Valid quiz ID is required.'),
+  param('id').isUUID().withMessage('Valid quiz ID is required.'),
   body('answers').isArray({ min: 1 }).withMessage('Answers array is required.'),
   body('answers.*.questionId').notEmpty().withMessage('questionId is required for each answer.'),
   body('answers.*.selectedAnswer').notEmpty().withMessage('selectedAnswer is required for each answer.'),
@@ -42,21 +43,21 @@ const submitQuizValidation = [
 ];
 
 const addManualPointsValidation = [
-  body('studentId').notEmpty().isMongoId().withMessage('Valid studentId is required.'),
-  body('courseId').notEmpty().isMongoId().withMessage('Valid courseId is required.'),
+  body('studentId').notEmpty().isUUID().withMessage('Valid studentId is required.'),
+  body('courseId').notEmpty().isUUID().withMessage('Valid courseId is required.'),
   body('points').notEmpty().isInt({ min: 1 }).withMessage('Points must be a positive integer.'),
 ];
 
 // ─── Attendance Validators ───────────────────────────────────────────────────
 const markAttendanceValidation = [
-  body('courseId').notEmpty().isMongoId().withMessage('Valid courseId is required.'),
-  body('lectureId').notEmpty().isMongoId().withMessage('Valid lectureId is required.'),
+  body('courseId').notEmpty().isUUID().withMessage('Valid courseId is required.'),
+  body('lectureId').notEmpty().isUUID().withMessage('Valid lectureId is required.'),
   body('watchedDurationSeconds').optional().isInt({ min: 0 }).withMessage('watchedDurationSeconds must be non-negative.'),
 ];
 
 // ─── Payment Validators ─────────────────────────────────────────────────────
 const createOrderValidation = [
-  body('mentorId').notEmpty().isMongoId().withMessage('Valid mentorId is required.'),
+  body('mentorId').notEmpty().isUUID().withMessage('Valid mentorId is required.'),
   body('slot').notEmpty().withMessage('Slot is required.'),
   body('slot.date').notEmpty().withMessage('Slot date is required.'),
   body('slot.time').notEmpty().withMessage('Slot time is required.'),
@@ -66,12 +67,12 @@ const verifyPaymentValidation = [
   body('razorpay_order_id').notEmpty().withMessage('razorpay_order_id is required.'),
   body('razorpay_payment_id').notEmpty().withMessage('razorpay_payment_id is required.'),
   body('razorpay_signature').notEmpty().withMessage('razorpay_signature is required.'),
-  body('bookingId').notEmpty().isMongoId().withMessage('Valid bookingId is required.'),
+  body('bookingId').notEmpty().isUUID().withMessage('Valid bookingId is required.'),
 ];
 
 // ─── Mentor Validators ───────────────────────────────────────────────────────
 const createMentorValidation = [
-  body('userId').notEmpty().isMongoId().withMessage('Valid userId is required.'),
+  body('userId').notEmpty().isUUID().withMessage('Valid userId is required.'),
   body('uid').notEmpty().withMessage('Firebase UID is required.'),
   body('name').notEmpty().trim().withMessage('Mentor name is required.'),
   body('bio').optional().trim(),
@@ -79,7 +80,7 @@ const createMentorValidation = [
 ];
 
 const addReviewValidation = [
-  body('bookingId').notEmpty().isMongoId().withMessage('Valid bookingId is required.'),
+  body('bookingId').notEmpty().isUUID().withMessage('Valid bookingId is required.'),
   body('rating').notEmpty().isInt({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5.'),
   body('review').optional().trim(),
 ];
@@ -95,7 +96,7 @@ const createSchoolValidation = [
 
 // ─── Enrollment Validators ───────────────────────────────────────────────────
 const enrollValidation = [
-  body('courseId').notEmpty().isMongoId().withMessage('Valid courseId is required.'),
+  body('courseId').notEmpty().isUUID().withMessage('Valid courseId is required.'),
 ];
 
 // ─── Announcement Validators ────────────────────────────────────────────────
@@ -103,13 +104,13 @@ const createAnnouncementValidation = [
   body('title').notEmpty().trim().withMessage('Announcement title is required.'),
   body('body').notEmpty().withMessage('Announcement body is required.'),
   body('type').optional().isIn(['general', 'quiz', 'course', 'event', 'maintenance', 'urgent']).withMessage('Invalid announcement type.'),
-  body('schoolId').optional().isMongoId().withMessage('Valid schoolId is required.'),
-  body('courseId').optional().isMongoId().withMessage('Valid courseId is required.'),
+  body('schoolId').optional().isUUID().withMessage('Valid schoolId is required.'),
+  body('courseId').optional().isUUID().withMessage('Valid courseId is required.'),
 ];
 
 // ─── User Management Validators ────────────────────────────────────────────
 const updateUserRoleValidation = [
-  param('id').isMongoId().withMessage('Valid user ID is required.'),
+  param('id').isUUID().withMessage('Valid user ID is required.'),
   body('role').notEmpty().isIn(['student', 'mentor', 'teacher', 'school_admin', 'super_admin']).withMessage('Invalid role.'),
 ];
 

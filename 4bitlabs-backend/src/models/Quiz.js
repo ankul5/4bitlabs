@@ -58,6 +58,21 @@ const Quiz = {
     return rows[0] ? formatQuiz(rows[0]) : null;
   },
 
+  async addQuestion(quizId, questionData) {
+    const { question, options, correctAnswer, correct_answer, explanation = '', imageUrl, image_url, points = 10 } = questionData;
+    const { rows: orderRows } = await pool.query('SELECT COALESCE(MAX(sort_order), -1) + 1 as next_order FROM quiz_questions WHERE quiz_id = $1', [quizId]);
+    const sortOrder = orderRows[0]?.next_order || 0;
+    const { rows } = await pool.query(
+      `INSERT INTO quiz_questions (quiz_id, question, options, correct_answer, explanation, image_url, points, sort_order) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [quizId, question, JSON.stringify(options), correctAnswer || correct_answer, explanation, imageUrl || image_url || '', points, sortOrder]
+    );
+    // Update quiz total_marks and passing_marks
+    const { rows: totalRows } = await pool.query('SELECT COALESCE(SUM(points), 0) as total FROM quiz_questions WHERE quiz_id = $1', [quizId]);
+    const totalMarks = parseInt(totalRows[0]?.total || 0);
+    await pool.query('UPDATE quizzes SET total_marks = $1, passing_marks = $2, updated_at = NOW() WHERE id = $3', [totalMarks, Math.ceil(totalMarks * 0.6), quizId]);
+    return rows[0] ? formatQuestion(rows[0]) : null;
+  },
+
   async findByIdAndDelete(id) {
     const { rows } = await pool.query('DELETE FROM quizzes WHERE id = $1 RETURNING *', [id]);
     return rows[0] ? formatQuiz(rows[0]) : null;

@@ -1,51 +1,57 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, SHADOWS } from '../config/theme';
+import { COLORS, SHADOWS, RADIUS, FONTS } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 
 import HomeScreen from '../screens/home/HomeScreen';
-import CourseScreen from '../screens/course/CourseScreen';
-import QuizScreen from '../screens/course/QuizScreen';
-import ResultScreen from '../screens/course/ResultScreen';
-import LeaderboardScreen from '../screens/leaderboard/LeaderboardScreen';
 import MentorScreen from '../screens/mentor/MentorScreen';
-import StoreScreen from '../screens/store/StoreScreen';
+import ProfileScreen from '../screens/profile/ProfileScreen';
+import StudentSchoolScreen from '../screens/home/StudentSchoolScreen';
 
 const Tab = createBottomTabNavigator();
-const CourseStack = createNativeStackNavigator();
 
-const CourseStackNavigator = () => {
+const TabIcon = ({ label, icon, focused }) => {
+  const { COLORS: C } = useTheme();
+  const scale = React.useRef(new Animated.Value(1)).current;
+
+  React.useEffect(() => {
+    Animated.spring(scale, {
+      toValue: focused ? 1.1 : 1,
+      useNativeDriver: true,
+      friction: 4,
+    }).start();
+  }, [focused]);
+
   return (
-    <CourseStack.Navigator screenOptions={{ headerShown: false }}>
-      <CourseStack.Screen name="CourseHome" component={CourseScreen} />
-      <CourseStack.Screen name="Quiz" component={QuizScreen} />
-      <CourseStack.Screen name="Result" component={ResultScreen} />
-      <CourseStack.Screen name="Leaderboard" component={LeaderboardScreen} />
-    </CourseStack.Navigator>
+    <Animated.View style={[
+      tabStyles.tabItem,
+      focused && { backgroundColor: C.primary + '15' },
+      { transform: [{ scale }] },
+    ]}>
+      <MaterialIcons
+        name={icon}
+        size={24}
+        color={focused ? C.primary : C.onSurfaceVariant}
+      />
+      {focused && (
+        <Text style={[tabStyles.tabLabel, { color: C.primary }]}>
+          {label}
+        </Text>
+      )}
+    </Animated.View>
   );
 };
 
-const TabIcon = ({ label, icon, focused }) => (
-  <View style={[tabStyles.tabItem, focused && tabStyles.tabItemActive]}>
-    <MaterialIcons
-      name={icon}
-      size={24}
-      style={[tabStyles.tabIcon, focused && tabStyles.tabIconActive]}
-    />
-    <Text style={[tabStyles.tabLabel, focused && tabStyles.tabLabelActive]}>
-      {label}
-    </Text>
-  </View>
-);
-
 const MainTabs = () => {
   const insets = useSafeAreaInsets();
+  const { COLORS: C, themeVersion } = useTheme();
 
   return (
     <Tab.Navigator
+      key={`main-tabs-${themeVersion}`}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
@@ -56,10 +62,13 @@ const MainTabs = () => {
           right: 0,
           height: 70 + insets.bottom,
           paddingBottom: insets.bottom,
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
+          backgroundColor: C.tabBarBg || C.surfaceContainerLowest,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: C.tabBarBorder || 'rgba(255,255,255,0.05)',
+          borderBottomWidth: 0,
           ...SHADOWS.lg,
           ...Platform.select({
             ios: {
@@ -85,15 +94,6 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Course"
-        component={CourseStackNavigator}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="COURSE" icon="menu-book" focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
         name="Mentor"
         component={MentorScreen}
         options={{
@@ -103,11 +103,20 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen
-        name="Store"
-        component={StoreScreen}
+        name="Profile"
+        component={ProfileScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="STORE" icon="store" focused={focused} />
+            <TabIcon label="PROFILE" icon="person" focused={focused} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="School"
+        component={StudentSchoolScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon label="SCHOOL" icon="school" focused={focused} />
           ),
         }}
       />
@@ -117,32 +126,18 @@ const MainTabs = () => {
 
 const tabStyles = StyleSheet.create({
   tabItem: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  tabItemActive: {
-    backgroundColor: 'rgba(186, 0, 19, 0.08)',
-  },
-  tabIcon: {
-    fontSize: 20,
-    marginBottom: 2,
-    opacity: 0.5,
-  },
-  tabIconActive: {
-    opacity: 1,
+    paddingVertical: 10,
+    borderRadius: RADIUS.full,
+    gap: 8,
   },
   tabLabel: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-  },
-  tabLabelActive: {
-    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
 });
 

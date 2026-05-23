@@ -1,10 +1,12 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useSidebar } from '../context/SidebarContext';
+import { useTheme } from '../context/ThemeContext';
 import SidebarContent from './SidebarContent';
 
 const SidebarOverlay = () => {
   const { isOpen, closeSidebar, translateX, backdropOpacity, SIDEBAR_WIDTH } = useSidebar();
+  const { COLORS } = useTheme();
 
   // Don't render anything when sidebar is fully closed and not animating
   if (!isOpen) return null;
@@ -28,6 +30,7 @@ const SidebarOverlay = () => {
         style={[
           styles.sidebarWrapper,
           { width: SIDEBAR_WIDTH, transform: [{ translateX }] },
+          { backgroundColor: COLORS.surfaceContainerLowest },
         ]}
       >
         <SidebarContent onClose={closeSidebar} />
@@ -46,7 +49,6 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: '#fff',
     zIndex: 999,
     shadowColor: '#000',
     shadowOffset: { width: 5, height: 0 },

@@ -67,4 +67,31 @@ const getCourseAttendance = async (req, res, next) => {
   }
 };
 
-module.exports = { markAttendance, getMyAttendance, getCourseAttendance };
+// ─── POST /api/v1/attendance/mark-student — Mentor marks attendance for a student
+const markStudentAttendance = async (req, res, next) => {
+  try {
+    const { userId, courseId, status } = req.body;
+    if (!userId || !courseId || !status) {
+      return res.status(400).json(errorResponse('userId, courseId, and status are required.'));
+    }
+    if (!['present', 'absent'].includes(status)) {
+      return res.status(400).json(errorResponse('Status must be present or absent.'));
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const course = await Course.findById(courseId);
+    if (!course) return res.status(404).json(errorResponse('Course not found.'));
+    const schoolId = course.schoolId?._id || course.schoolId;
+
+    const attendance = await Attendance.create({
+      user_id: userId, course_id: courseId, lecture_id: null,
+      school_id: schoolId, date: today, status,
+      watched_duration_seconds: 0,
+    });
+
+    res.json(successResponse(`Attendance marked as ${status}.`, { attendance }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { markAttendance, getMyAttendance, getCourseAttendance, markStudentAttendance };

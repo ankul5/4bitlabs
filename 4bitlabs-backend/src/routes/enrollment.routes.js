@@ -19,7 +19,7 @@ router.get('/my', protect, getMyEnrollments);
 router.get(
   '/course/:courseId',
   protect,
-  authorize('teacher', 'school_admin', 'super_admin'),
+  authorize('teacher', 'school_admin', 'super_admin', 'mentor'),
   getCourseEnrollments
 );
 

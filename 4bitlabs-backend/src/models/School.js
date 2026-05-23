@@ -19,12 +19,13 @@ const School = {
     return rows.map(formatSchool);
   },
   async create(data) {
-    const { name, code, address = '', city = '', state = '', logo = '', admin_id } = data;
+    const { name, code, address = '', city = '', state = '', logo = '', admin_id, is_active = true } = data;
     const { rows } = await pool.query(
-      `INSERT INTO schools (name, code, address, city, state, logo, admin_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [name, code.toUpperCase(), address, city, state, logo, admin_id || null]
+      `INSERT INTO schools (name, code, address, city, state, logo, admin_id, is_active) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [name, code.toUpperCase(), address, city, state, logo, admin_id || null, is_active]
     );
-    return formatSchool(rows[0]);
+    if (rows && rows.length > 0) return formatSchool(rows[0]);
+    return this.findByCode(code);
   },
   async findByIdAndUpdate(id, data) {
     const fields = [];

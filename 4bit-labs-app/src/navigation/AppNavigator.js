@@ -12,7 +12,7 @@ const ADMIN_ROLES = ['mentor', 'teacher', 'school_admin', 'super_admin'];
 
 const AppNavigator = () => {
   const { user } = useAuth();
-  const { loadTheme } = useTheme();
+  const { loadTheme, themeVersion } = useTheme();
 
   useEffect(() => {
     if (user) {
@@ -23,7 +23,7 @@ const AppNavigator = () => {
   const isMentor = user && ADMIN_ROLES.includes(user.role);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer key={`app-nav-${themeVersion}`}>
       {user ? (
         isMentor ? (
           <MentorStack />

@@ -24,8 +24,8 @@ const authorize = (...roles) => {
  */
 const sameSchool = (req, res, next) => {
   if (!req.user) return res.status(401).json({ success: false, message: 'Not authenticated.' });
-  // Admins and super_admins can access any school
-  if (['school_admin', 'super_admin', 'teacher'].includes(req.user.role)) return next();
+  // Users with roles school_admin, super_admin, teacher, or mentor bypass school scoping
+  if (['school_admin', 'super_admin', 'teacher', 'mentor'].includes(req.user.role)) return next();
   // Students can only access their own school data
   req.schoolFilter = { $or: [{ schoolId: req.user.schoolId }, { schoolId: { $exists: false } }] };
   next();

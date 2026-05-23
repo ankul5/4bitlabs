@@ -123,16 +123,13 @@ const MentorScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        {/* ── Select Mentor ──────────────────────────────────────────────── */}
+        {/* ── Select Mentor — REAL DATA ONLY ─────────────────────────────── */}
         <View style={styles.mentorSection}>
           <View style={styles.mentorHeader}>
             <View>
               <Text style={styles.mentorSectionTitle}>Select your Mentor</Text>
               <Text style={styles.mentorSubtitle}>Expert educators ready to guide your journey.</Text>
             </View>
-            <TouchableOpacity>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
           </View>
 
           <View style={styles.mentorsList}>
@@ -141,26 +138,21 @@ const MentorScreen = ({ navigation }) => {
                 <MaterialCommunityIcons name="account-search" size={24} color={COLORS.onSurfaceVariant} />
                 <Text style={styles.loadingText}>Loading mentors...</Text>
               </View>
+            ) : mentors.length === 0 ? (
+              <View style={styles.loadingRow}>
+                <MaterialCommunityIcons name="account-off" size={24} color={COLORS.onSurfaceVariant} />
+                <Text style={styles.loadingText}>No mentors available at the moment</Text>
+              </View>
             ) : (
-              [...mentors.slice(0, 5), ...Array.from({ length: Math.max(0, 5 - mentors.length) }).map((_, i) => ({
-                id: `placeholder-${i}`,
-                name: 'Mentor Spot Available',
-                role: 'Platform Mentor',
-                email: 'contact@4bitlabs.in',
-                phone: '+91 0000000000',
-                rating: 5.0,
-                reviewCount: 0,
-                isPlaceholder: true,
-              }))].map((mentor) => {
+              mentors.map((mentor) => {
                 const mid = mentor._id || mentor.id;
                 const isSelected = selectedMentor === mid;
                 return (
                   <TouchableOpacity
                     key={mid}
-                    style={[styles.mentorCard, isSelected && styles.mentorCardSelected, mentor.isPlaceholder && { opacity: 0.7 }]}
-                    onPress={() => !mentor.isPlaceholder && setSelectedMentor(mid)}
+                    style={[styles.mentorCard, isSelected && styles.mentorCardSelected]}
+                    onPress={() => setSelectedMentor(mid)}
                     activeOpacity={0.8}
-                    disabled={mentor.isPlaceholder}
                   >
                     <View style={styles.mentorInfo}>
                       <Image
@@ -174,20 +166,16 @@ const MentorScreen = ({ navigation }) => {
                             <MaterialCommunityIcons name="check-decagram" size={16} color={COLORS.primary} />
                           )}
                         </View>
-                        <Text style={styles.mentorRole}>{mentor.designation || mentor.role}</Text>
+                        <Text style={styles.mentorRole}>{mentor.designation || mentor.role || 'Platform Mentor'}</Text>
                         
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                           <MaterialCommunityIcons name="email-outline" size={12} color={COLORS.onSurfaceVariant} />
-                          <Text style={{ fontSize: 11, color: COLORS.onSurfaceVariant }}>{mentor.user_email || mentor.email || 'No email provided'}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                          <MaterialCommunityIcons name="phone-outline" size={12} color={COLORS.onSurfaceVariant} />
-                          <Text style={{ fontSize: 11, color: COLORS.onSurfaceVariant }}>{mentor.phone || 'No phone provided'}</Text>
+                          <Text style={{ fontSize: 11, color: COLORS.onSurfaceVariant }}>{mentor.user_email || mentor.email || 'No email'}</Text>
                         </View>
 
                         <View style={styles.ratingRow}>
                           <FontAwesome5 name="star" size={10} color="#f59e0b" solid />
-                          <Text style={styles.ratingText}>{mentor.rating} ({mentor.reviewCount} reviews)</Text>
+                          <Text style={styles.ratingText}>{mentor.rating || 5.0} ({mentor.reviewCount || 0} reviews)</Text>
                         </View>
                       </View>
                     </View>
@@ -200,21 +188,19 @@ const MentorScreen = ({ navigation }) => {
                       ))}
                     </View>
 
-                    {!mentor.isPlaceholder && (
-                      <TouchableOpacity
-                        style={[styles.selectBtn, isSelected && styles.selectBtnActive]}
-                        onPress={() => setSelectedMentor(mid)}
-                        activeOpacity={0.8}
-                      >
-                        {isSelected
-                          ? <Ionicons name="checkmark-circle" size={16} color="#fff" />
-                          : <Ionicons name="person-add-outline" size={16} color={COLORS.onSurface} />
-                        }
-                        <Text style={[styles.selectBtnText, isSelected && styles.selectBtnTextActive]}>
-                          {isSelected ? 'Selected' : 'Select Profile'}
-                        </Text>
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                      style={[styles.selectBtn, isSelected && styles.selectBtnActive]}
+                      onPress={() => setSelectedMentor(mid)}
+                      activeOpacity={0.8}
+                    >
+                      {isSelected
+                        ? <Ionicons name="checkmark-circle" size={16} color="#fff" />
+                        : <Ionicons name="person-add-outline" size={16} color={COLORS.onSurface} />
+                      }
+                      <Text style={[styles.selectBtnText, isSelected && styles.selectBtnTextActive]}>
+                        {isSelected ? 'Selected' : 'Select Profile'}
+                      </Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 );
               })
@@ -320,7 +306,6 @@ const styles = StyleSheet.create({
   mentorHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.xl },
   mentorSectionTitle: { fontSize: 22, fontWeight: '800', color: COLORS.onSurface, letterSpacing: -0.5 },
   mentorSubtitle: { fontSize: 13, color: COLORS.onSurfaceVariant, marginTop: 4 },
-  seeAllText: { fontSize: 13, fontWeight: '700', color: COLORS.secondary },
   mentorsList: { gap: SPACING.xl },
   loadingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 20 },
   loadingText: { color: COLORS.onSurfaceVariant, fontSize: 14 },

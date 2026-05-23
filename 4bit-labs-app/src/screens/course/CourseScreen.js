@@ -15,10 +15,12 @@ import Header from "../../components/Header";
 import SectionHeader from "../../components/SectionHeader";
 import Card from "../../components/Card";
 import { useAuth } from "../../context/AuthContext";
+import { useSocket } from "../../hooks/useSocket";
 import { getCourses, getCourse } from "../../services/courseService";
 import { getQuizzes } from "../../services/quizService";
 import { getLeaderboard } from "../../services/leaderboardService";
 import Svg, { Circle } from "react-native-svg";
+import * as Linking from "expo-linking";
 
 const CourseScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -35,14 +37,14 @@ const CourseScreen = ({ navigation }) => {
       const courses = await getCourses();
       if (courses && courses.length > 0) {
         const firstCourse = courses[0];
-        const detail = await getCourse(firstCourse._id);
+        const detail = await getCourse(firstCourse._id || firstCourse.id);
         setCourseData(detail);
         setLectures(detail.lectures || []);
         setBuildProjects(detail.buildProjects || []);
 
         // Fetch quizzes for this course
         try {
-          const quizList = await getQuizzes(firstCourse._id);
+          const quizList = await getQuizzes((firstCourse._id || firstCourse.id));
           setQuizzes(quizList || []);
         } catch {
           setQuizzes([]);
@@ -50,7 +52,7 @@ const CourseScreen = ({ navigation }) => {
 
         // Fetch leaderboard
         try {
-          const lb = await getLeaderboard(firstCourse._id);
+          const lb = await getLeaderboard((firstCourse._id || firstCourse.id));
           setLeaderboard(lb?.entries?.slice(0, 3) || []);
         } catch {
           setLeaderboard([]);
@@ -71,6 +73,18 @@ const CourseScreen = ({ navigation }) => {
     setRefreshing(true);
     fetchData();
   };
+
+  useSocket('lecture:added', (data) => {
+    if (courseData && (courseData._id === data.courseId || courseData.id === data.courseId)) {
+      setLectures(prev => [...prev, data.lecture]);
+    }
+  });
+
+  useSocket('quiz:created', (newQuiz) => {
+    if (courseData && (courseData._id === newQuiz.courseId || courseData.id === newQuiz.courseId)) {
+      setQuizzes(prev => [...prev, newQuiz]);
+    }
+  });
 
   const completedLectures = lectures.filter((l) => l.completed).length;
   const totalLectures = lectures.length;
@@ -194,6 +208,14 @@ const CourseScreen = ({ navigation }) => {
                 index > completedLectures && styles.lectureItemLocked,
               ]}
               activeOpacity={0.8}
+              onPress={() => {
+                // If there's a videoUrl and it's unlocked, open it
+                if (index <= completedLectures && lecture.videoUrl) {
+                  Linking.openURL(lecture.videoUrl).catch(err => {
+                    console.warn("Couldn't load page", err);
+                  });
+                }
+              }}
             >
               <View style={styles.lectureThumbnail}>
                 <Image

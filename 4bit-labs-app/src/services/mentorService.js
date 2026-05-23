@@ -2,17 +2,17 @@ import api from './api';
 
 export const getMentors = async (skill = '') => {
   const res = await api.get('/mentors', { params: skill ? { skill } : {} });
-  return res.data.mentors;
+  return res.data?.data?.mentors || [];
 };
 
 export const getMentor = async (mentorId) => {
   const res = await api.get(`/mentors/${mentorId}`);
-  return res.data.mentor;
+  return res.data?.data?.mentor || null;
 };
 
 export const getMyBookings = async () => {
   const res = await api.get('/mentors/bookings/my');
-  return res.data.bookings;
+  return res.data?.data?.bookings || [];
 };
 
 /**
@@ -28,5 +28,5 @@ export const createOrder = async (mentorId, slot) => {
 
 export const verifyPayment = async (paymentData) => {
   const res = await api.post('/payments/verify', paymentData);
-  return res.data.booking;
+  return res.data?.data?.booking;
 };

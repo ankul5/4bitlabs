@@ -15,7 +15,7 @@ import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
 import InputField from '../../components/InputField';
 import { useAuth } from '../../context/AuthContext';
 import { getSchools } from '../../services/schoolService';
-import { getCourses } from '../../services/courseService';
+import { getPublicCourses } from '../../services/courseService';
 
 const RegisterScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -28,6 +28,7 @@ const RegisterScreen = ({ navigation }) => {
     password: '',
     schoolId: '',
     schoolName: '',
+    customSchoolName: '',
     courseIds: [],
     courseName: '',
   });
@@ -38,38 +39,24 @@ const RegisterScreen = ({ navigation }) => {
   const [courses, setCourses] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Fetch schools on mount
+  // Fetch schools and global courses on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const schoolList = await getSchools();
+        const [schoolList, courseList] = await Promise.all([
+          getSchools(),
+          getPublicCourses(),
+        ]);
         setSchools(schoolList || []);
+        setCourses(courseList || []);
       } catch (err) {
-        console.warn('Failed to load schools:', err.message);
-        // Fallback: allow registration without school picker
+        console.warn('Failed to load initial registration data:', err.message);
       } finally {
         setLoadingData(false);
       }
     };
     loadData();
   }, []);
-
-  // Fetch courses when school changes (uses public courses list)
-  useEffect(() => {
-    if (!form.schoolId) return;
-    const loadCourses = async () => {
-      try {
-        // getCourses needs auth, so we show available courses for the school
-        // For now, use school detail which includes courses
-        const { getSchool } = require('../../services/schoolService');
-        const school = await getSchool(form.schoolId);
-        setCourses(school?.courses || []);
-      } catch (err) {
-        setCourses([]);
-      }
-    };
-    loadCourses();
-  }, [form.schoolId]);
 
   const updateForm = (key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -80,13 +67,18 @@ const RegisterScreen = ({ navigation }) => {
       setError('Please fill in all required fields');
       return;
     }
+    if (form.schoolId === 'other' && (!form.customSchoolName || !form.customSchoolName.trim())) {
+      setError('Please enter your school name');
+      return;
+    }
     setError('');
     const result = await register({
       name: form.name,
       email: form.email,
       password: form.password,
       phone: form.phone,
-      schoolId: form.schoolId || undefined,
+      schoolId: form.schoolId !== 'other' ? (form.schoolId || undefined) : undefined,
+      customSchoolName: form.schoolId === 'other' ? form.customSchoolName.trim() : undefined,
       courseIds: form.courseIds.length > 0 ? form.courseIds : undefined,
     });
     if (!result.success) {
@@ -185,27 +177,65 @@ const RegisterScreen = ({ navigation }) => {
             {showSchoolPicker && (
               <View style={styles.pickerDropdown}>
                 {schools.length === 0 ? (
-                  <View style={styles.pickerOption}>
-                    <Text style={styles.pickerOptionText}>{loadingData ? 'Loading...' : 'No schools found'}</Text>
-                  </View>
-                ) : (
-                  schools.map((school) => (
+                  <>
+                    <View style={styles.pickerOption}>
+                      <Text style={styles.pickerOptionText}>{loadingData ? 'Loading...' : 'No schools found'}</Text>
+                    </View>
                     <TouchableOpacity
-                      key={school._id}
                       style={styles.pickerOption}
                       onPress={() => {
-                        updateForm('schoolId', school._id);
-                        updateForm('schoolName', school.name);
+                        updateForm('schoolId', 'other');
+                        updateForm('schoolName', 'Other (Not Listed)');
+                        updateForm('customSchoolName', '');
                         setShowSchoolPicker(false);
                       }}
                     >
-                      <Text style={styles.pickerOptionText}>{school.name} ({school.code})</Text>
+                      <Text style={[styles.pickerOptionText, { fontWeight: 'bold', color: COLORS.primary }]}>Other (Add my school)</Text>
                     </TouchableOpacity>
-                  ))
+                  </>
+                ) : (
+                  <>
+                    {schools.map((school) => (
+                      <TouchableOpacity
+                        key={school.id || school._id}
+                        style={styles.pickerOption}
+                        onPress={() => {
+                          updateForm('schoolId', school.id || school._id);
+                          updateForm('schoolName', school.name);
+                          updateForm('customSchoolName', '');
+                          setShowSchoolPicker(false);
+                        }}
+                      >
+                        <Text style={styles.pickerOptionText}>{school.name} ({school.code})</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      style={styles.pickerOption}
+                      onPress={() => {
+                        updateForm('schoolId', 'other');
+                        updateForm('schoolName', 'Other (Not Listed)');
+                        updateForm('customSchoolName', '');
+                        setShowSchoolPicker(false);
+                      }}
+                    >
+                      <Text style={[styles.pickerOptionText, { fontWeight: 'bold', color: COLORS.primary }]}>Other (Add my school)</Text>
+                    </TouchableOpacity>
+                  </>
                 )}
               </View>
             )}
           </View>
+
+          {/* Custom School Input */}
+          {form.schoolId === 'other' && (
+            <InputField
+              label="Custom School Name"
+              value={form.customSchoolName}
+              onChangeText={(v) => updateForm('customSchoolName', v)}
+              placeholder="Enter your school/college name"
+              icon="school"
+            />
+          )}
 
           {/* Course Picker */}
           <View style={styles.pickerContainer}>
@@ -229,10 +259,10 @@ const RegisterScreen = ({ navigation }) => {
                 ) : (
                   courses.map((course) => (
                     <TouchableOpacity
-                      key={course._id}
+                      key={course.id || course._id}
                       style={styles.pickerOption}
                       onPress={() => {
-                        updateForm('courseIds', [course._id]);
+                        updateForm('courseIds', [course.id || course._id]);
                         updateForm('courseName', course.title);
                         setShowCoursePicker(false);
                       }}

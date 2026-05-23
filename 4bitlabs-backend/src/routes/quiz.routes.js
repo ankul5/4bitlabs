@@ -1,7 +1,7 @@
 const express = require('express');
 const {
   getQuizzes, getQuiz, submitQuiz, createQuiz, updateQuiz, addManualPoints,
-  deleteQuiz, getQuizAttempts, gradeAttempt
+  deleteQuiz, getQuizAttempts, gradeAttempt, addQuestionToQuiz
 } = require('../controllers/quizController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -19,6 +19,9 @@ router.get('/:id', protect, getQuiz);
 
 // POST /api/v1/quizzes/:id/submit    — Submit answers → auto-grade
 router.post('/:id/submit', protect, submitQuizValidation, validate, submitQuiz);
+
+// POST /api/v1/quizzes/:id/questions — Add question to existing quiz
+router.post('/:id/questions', protect, authorize('teacher', 'school_admin', 'super_admin', 'mentor'), addQuestionToQuiz);
 
 // GET  /api/v1/quizzes/:id/attempts  — Teacher views all attempts
 router.get('/:id/attempts', protect, authorize('teacher', 'school_admin', 'super_admin', 'mentor'), getQuizAttempts);

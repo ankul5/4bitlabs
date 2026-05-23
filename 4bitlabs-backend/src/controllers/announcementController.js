@@ -13,6 +13,16 @@ const createAnnouncement = async (req, res, next) => {
     if (schoolId) {
       notificationService.notifySchool(schoolId, announcement.title, announcement.body.substring(0, 100)).catch(() => {});
     }
+
+    // Real-time: notify students of new announcement
+    if (req.io) {
+      if (schoolId) {
+        req.io.to(`school_${schoolId}`).emit('announcement:created', announcement);
+      } else {
+        req.io.to('global').emit('announcement:created', announcement);
+      }
+    }
+
     res.status(201).json(successResponse('Announcement created.', { announcement }));
   } catch (error) {
     next(error);

@@ -17,9 +17,11 @@ const getUsers = async (req, res, next) => {
     let i = 1;
 
     if (req.query.role) { q += ` AND u.role = $${i++}`; vals.push(req.query.role); }
-    if (req.query.schoolId) { q += ` AND u.school_id = $${i++}`; vals.push(req.query.schoolId); }
+    if (req.query.schoolId && req.query.schoolId !== 'undefined' && req.query.schoolId !== 'null') { q += ` AND u.school_id = $${i++}`; vals.push(req.query.schoolId); }
     if (req.query.isActive !== undefined) { q += ` AND u.is_active = $${i++}`; vals.push(req.query.isActive === 'true'); }
     if (req.query.search) { q += ` AND (LOWER(u.name) LIKE $${i} OR LOWER(u.email) LIKE $${i})`; vals.push(`%${req.query.search.toLowerCase()}%`); i++; }
+    
+    // Role-based restrictions
     if (req.user.role === 'school_admin' && req.user.schoolId) {
       q += ` AND u.school_id = $${i++}`; vals.push(req.user.schoolId._id || req.user.schoolId);
     }

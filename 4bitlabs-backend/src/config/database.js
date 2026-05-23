@@ -11,7 +11,15 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // This wrapper sends SQL via HTTPS to the exec_sql() Postgres function
 const pool = {
   async query(text, params = []) {
-    const cleanParams = (params || []).map(v => (v === undefined || v === null) ? null : String(v));
+    const cleanParams = (params || []).map(v => {
+      if (v === undefined || v === null) return null;
+      if (Array.isArray(v)) {
+        if (v.length === 0) return '{}';
+        return '{' + v.map(item => item === null ? 'NULL' : `"${String(item).replace(/"/g, '""')}"`).join(',') + '}';
+      }
+      if (typeof v === 'object' && v !== null) return JSON.stringify(v);
+      return String(v);
+    });
 
     const { data, error } = await supabase.rpc('exec_sql', {
       query_text: text,

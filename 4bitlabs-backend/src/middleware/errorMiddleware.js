@@ -23,8 +23,14 @@ const errorHandler = (err, req, res, next) => {
   // Mongoose Duplicate Key
   if (err.code === 11000) {
     statusCode = 409;
-    const field = Object.keys(err.keyValue)[0];
+    const field = Object.keys(err.keyValue || {})[0] || 'Field';
     message = `${field} already exists.`;
+  }
+
+  // PostgreSQL Duplicate Key
+  if (err.code === '23505') {
+    statusCode = 409;
+    message = 'Email or record already exists.';
   }
 
   // Mongoose Cast Error (invalid ObjectId)

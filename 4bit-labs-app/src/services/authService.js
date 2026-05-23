@@ -8,18 +8,20 @@ import api from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
- * Login with email/password via Firebase, then verify with our backend to get JWT./** */
-
+ * Login with email/password via Firebase, then verify with our backend to get JWT.
+ */
 export const loginWithEmail = async (email, password) => {
   const userCred = await signInWithEmailAndPassword(auth, email, password);
   const idToken = await userCred.user.getIdToken();
   const res = await api.post("/auth/verify-token", { idToken });
-  await AsyncStorage.setItem("jwt", res.data.token);
-  return res.data.user;
+  const payload = res.data?.data || res.data;
+  await AsyncStorage.setItem("jwt", payload.token);
+  return payload.user;
 };
 
 /**
- * Register new user: create Firebase account, then store in our MongoDB.
+ * Register new user: create Firebase account, then store in our PostgreSQL DB.
+ * If Firebase says email already exists, try to sign in instead and register with backend.
  */
 export const registerUser = async ({
   name,
@@ -27,9 +29,22 @@ export const registerUser = async ({
   password,
   phone,
   schoolId,
+  customSchoolName,
   courseIds,
 }) => {
-  const userCred = await createUserWithEmailAndPassword(auth, email, password);
+  let userCred;
+  try {
+    userCred = await createUserWithEmailAndPassword(auth, email, password);
+  } catch (fbError) {
+    if (fbError.code === "auth/email-already-in-use") {
+      // Firebase account exists but backend might not have the user
+      // Try signing in with Firebase and registering with backend
+      userCred = await signInWithEmailAndPassword(auth, email, password);
+    } else {
+      throw fbError;
+    }
+  }
+
   const idToken = await userCred.user.getIdToken();
   const res = await api.post("/auth/register", {
     idToken,
@@ -37,10 +52,12 @@ export const registerUser = async ({
     email,
     phone,
     schoolId,
+    customSchoolName,
     courseIds,
   });
-  await AsyncStorage.setItem("jwt", res.data.token);
-  return res.data.user;
+  const payload = res.data?.data || res.data;
+  await AsyncStorage.setItem("jwt", payload.token);
+  return payload.user;
 };
 
 /**
@@ -56,7 +73,8 @@ export const logoutUser = async () => {
  */
 export const getMyProfile = async () => {
   const res = await api.get("/auth/me");
-  return res.data.user;
+  const payload = res.data?.data || res.data;
+  return payload.user;
 };
 
 /**
@@ -84,7 +102,7 @@ export const uploadImage = async (imageUri) => {
   const res = await api.post("/upload/image", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
-  return res.data; // should contain { data: { url } } based on backend
+  return res.data?.data || res.data;
 };
 
 /**
@@ -92,5 +110,6 @@ export const uploadImage = async (imageUri) => {
  */
 export const updateMyProfile = async (updates) => {
   const res = await api.put("/auth/me", updates);
-  return res.data.user;
+  const payload = res.data?.data || res.data;
+  return payload.user;
 };

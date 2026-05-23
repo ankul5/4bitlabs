@@ -30,12 +30,35 @@ const Attendance = {
 
   async create(data) {
     const { user_id, course_id, lecture_id, school_id, date, status = 'present', watched_duration_seconds = 0 } = data;
-    const { rows } = await pool.query(
-      `INSERT INTO attendance (user_id, course_id, lecture_id, school_id, date, status, watched_duration_seconds)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (user_id, lecture_id) DO UPDATE SET status=EXCLUDED.status, watched_duration_seconds=EXCLUDED.watched_duration_seconds RETURNING *`,
-      [user_id, course_id, lecture_id, school_id, date, status, watched_duration_seconds]
-    );
-    return formatAttendance(rows[0]);
+    let existing;
+    if (lecture_id) {
+      const { rows } = await pool.query(
+        'SELECT * FROM attendance WHERE user_id = $1 AND lecture_id = $2',
+        [user_id, lecture_id]
+      );
+      existing = rows[0];
+    } else {
+      const { rows } = await pool.query(
+        'SELECT * FROM attendance WHERE user_id = $1 AND course_id = $2 AND date = $3 AND lecture_id IS NULL',
+        [user_id, course_id, date]
+      );
+      existing = rows[0];
+    }
+
+    if (existing) {
+      const { rows } = await pool.query(
+        'UPDATE attendance SET status = $1, watched_duration_seconds = $2, date = $3 WHERE id = $4 RETURNING *',
+        [status, watched_duration_seconds, date, existing.id]
+      );
+      return formatAttendance(rows[0]);
+    } else {
+      const { rows } = await pool.query(
+        `INSERT INTO attendance (user_id, course_id, lecture_id, school_id, date, status, watched_duration_seconds)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [user_id, course_id, lecture_id, school_id, date, status, watched_duration_seconds]
+      );
+      return formatAttendance(rows[0]);
+    }
   },
 
   async getStats(userId, courseIds) {

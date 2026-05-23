@@ -44,7 +44,7 @@ const register = async (req, res, next) => {
       return res.status(400).json(errorResponse('Validation failed.', errors.array()));
     }
 
-    const { idToken, name, email, phone, schoolId, role } = req.body;
+    const { idToken, name, email, phone, schoolId, customSchoolName, role } = req.body;
     const decoded = await admin.auth().verifyIdToken(idToken);
 
     const existing = await User.findByUid(decoded.uid);
@@ -59,6 +59,22 @@ const register = async (req, res, next) => {
       if (!school) return res.status(400).json(errorResponse('Invalid school ID.'));
       resolvedSchoolId = schoolId;
       await School.findByIdAndUpdate(schoolId, { student_count_inc: 1 });
+    } else if (customSchoolName && customSchoolName.trim()) {
+      const formattedName = customSchoolName.trim();
+      const code = formattedName.toUpperCase().replace(/\s+/g, '').substring(0, 8) + Math.floor(100 + Math.random() * 900);
+      const { rows: existingSchools } = await pool.query('SELECT * FROM schools WHERE LOWER(name) = LOWER($1) LIMIT 1', [formattedName]);
+      let school;
+      if (existingSchools[0]) {
+        school = existingSchools[0];
+      } else {
+        school = await School.create({
+          name: formattedName,
+          code,
+          is_active: true
+        });
+      }
+      resolvedSchoolId = school.id || school._id;
+      await School.findByIdAndUpdate(resolvedSchoolId, { student_count_inc: 1 });
     }
 
     const user = await User.create({
@@ -73,6 +89,19 @@ const register = async (req, res, next) => {
     });
 
     const token = signJWT(user);
+
+    // Real-time: notify admin dashboard of new student registration
+    if (req.io) {
+      req.io.to('admin').emit('student:registered', {
+        student: { id: user._id || user.id, name: user.name, email: user.email, schoolId: resolvedSchoolId, createdAt: user.createdAt },
+      });
+      if (resolvedSchoolId) {
+        req.io.to(`school_${resolvedSchoolId}`).emit('student:registered', {
+          student: { id: user._id || user.id, name: user.name, email: user.email, schoolId: resolvedSchoolId },
+        });
+      }
+    }
+
     return res.status(201).json(successResponse('Registration successful.', { token, user }));
   } catch (error) {
     if (error.code && error.code.startsWith('auth/')) {

@@ -1,6 +1,7 @@
 const { pool } = require('../config/database');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
 const User = require('../models/User');
+const School = require('../models/School');
 
 // ─── PUT /api/v1/admin/users/:id/points ─────────────────────────────────────
 const manuallyUpdatePoints = async (req, res, next) => {
@@ -55,7 +56,69 @@ const overrideAttendance = async (req, res, next) => {
   }
 };
 
+// ─── GET /api/v1/admin/school-stats ──────────────────────────────────────────
+const getSchoolStats = async (req, res, next) => {
+  try {
+    // Get all active schools
+    const schools = await School.find({ is_active: true });
+
+    // Get student count per school
+    const { rows: studentCounts } = await pool.query(
+      `SELECT school_id, COUNT(*) as student_count
+       FROM users WHERE role = 'student' AND school_id IS NOT NULL
+       GROUP BY school_id`
+    );
+    const studentCountMap = {};
+    studentCounts.forEach(r => { studentCountMap[r.school_id] = parseInt(r.student_count); });
+
+    // Get courses per school with enrollment counts
+    const { rows: coursesWithEnrollments } = await pool.query(
+      `SELECT c.id as course_id, c.title as course_title, c.school_id,
+              COUNT(DISTINCT e.user_id) as enrolled_count
+       FROM courses c
+       LEFT JOIN enrollments e ON e.course_id = c.id AND e.status = 'active'
+       WHERE c.is_published = true
+       GROUP BY c.id, c.title, c.school_id
+       ORDER BY c.title ASC`
+    );
+
+    // Group courses by school
+    const coursesBySchool = {};
+    coursesWithEnrollments.forEach(r => {
+      if (!coursesBySchool[r.school_id]) coursesBySchool[r.school_id] = [];
+      coursesBySchool[r.school_id].push({
+        id: r.course_id,
+        title: r.course_title,
+        enrolledCount: parseInt(r.enrolled_count) || 0,
+      });
+    });
+
+    // Build response
+    const schoolStats = schools.map(s => ({
+      id: s.id || s._id,
+      name: s.name,
+      code: s.code,
+      studentCount: studentCountMap[s.id || s._id] || 0,
+      courses: coursesBySchool[s.id || s._id] || [],
+    }));
+
+    // Grand totals
+    const totalStudents = Object.values(studentCountMap).reduce((a, b) => a + b, 0);
+    const totalCourses = coursesWithEnrollments.length;
+
+    res.json(successResponse('School stats fetched.', {
+      schools: schoolStats,
+      totalStudents,
+      totalSchools: schools.length,
+      totalCourses,
+    }));
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   manuallyUpdatePoints,
-  overrideAttendance
+  overrideAttendance,
+  getSchoolStats,
 };

@@ -39,6 +39,17 @@ export const getAttendance = async (params) => {
   return res.data?.data?.records || [];
 };
 
+export const markStudentAttendance = async (data) => {
+  const res = await api.post('/attendance/mark-student', data);
+  return res.data;
+};
+
+// ─── Enrolled Students per Course ─────────────────────────────────────────────
+export const getEnrolledStudents = async (courseId) => {
+  const res = await api.get(`/enrollments/course/${courseId}`);
+  return res.data?.data?.enrollments || [];
+};
+
 // ─── Quizzes ──────────────────────────────────────────────────────────────────
 export const getQuizzes = async (schoolId) => {
   const res = await api.get('/quizzes', { params: { schoolId } });
@@ -150,7 +161,7 @@ export const getLeaderboard = async (courseId) => {
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 export const updateProfile = async (data) => {
-  const res = await api.put('/users/me', data);
+  const res = await api.put('/auth/me', data);
   return res.data?.data?.user;
 };
 
@@ -163,6 +174,11 @@ export const getSchools = async () => {
 export const createSchool = async (data) => {
   const res = await api.post('/schools', data);
   return res.data?.data?.school;
+};
+
+export const getSchoolStats = async () => {
+  const res = await api.get('/admin/school-stats');
+  return res.data?.data || null;
 };
 
 // ─── Overrides ────────────────────────────────────────────────────────────────

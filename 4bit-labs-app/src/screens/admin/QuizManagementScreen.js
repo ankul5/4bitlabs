@@ -1,236 +1,353 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, Alert, Modal, ScrollView, RefreshControl } from 'react-native';
-import { MaterialIcons, Ionicons } from '@expo/vector-icons';
+import { 
+  View, Text, StyleSheet, TouchableOpacity, TextInput, 
+  Alert, Modal, ScrollView, RefreshControl, Dimensions, ActivityIndicator
+} from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../context/AuthContext';
-import { useTheme } from '../../context/ThemeContext';
-import { SHADOWS } from '../../config/theme';
-import { getQuizzes, createQuiz, deleteQuiz, addQuestion } from '../../services/adminService';
+import { COLORS, FONTS, RADIUS, SHADOWS } from '../../config/theme';
+import { getQuizzes, createQuiz, deleteQuiz, addQuestion, getCourses } from '../../services/adminService';
+import StitchHeader from '../../components/StitchHeader';
 
-const QuizManagementScreen = () => {
+const { width } = Dimensions.get('window');
+
+const QuizManagementScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { COLORS, isDark } = useTheme();
   const [quizzes, setQuizzes] = useState([]);
+  const [courses, setCourses] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  
+  // Create quiz modal
   const [showCreate, setShowCreate] = useState(false);
-  const [showAddQ, setShowAddQ] = useState(false);
-  const [selectedQuiz, setSelectedQuiz] = useState(null);
-  const [form, setForm] = useState({ title: '', duration: '15', total_marks: '100', passing_marks: '40', type: 'mcq' });
-  const [qForm, setQForm] = useState({ 
-    type: 'mcq', // 'mcq' or 'written'
-    question: '', optA: '', optB: '', optC: '', optD: '', correct: 'A', points: '10' 
-  });
+  const [saving, setSaving] = useState(false);
+  const [quizForm, setQuizForm] = useState({ title: '', duration: '15', courseId: '' });
+  const [questions, setQuestions] = useState([]);
+  
+  // Add question form
+  const [questionText, setQuestionText] = useState('');
+  const [options, setOptions] = useState(['', '', '', '']);
+  const [correctIndex, setCorrectIndex] = useState(0);
 
-  const fetchQuizzes = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const data = await getQuizzes(user?.school_id);
-      setQuizzes(data);
-    } catch (e) { console.warn('Quiz fetch error:', e.message); }
+      const [q, c] = await Promise.all([
+        getQuizzes(user?.school_id),
+        getCourses(user?.school_id),
+      ]);
+      setQuizzes(q || []);
+      setCourses(c || []);
+    } catch (e) {
+      console.warn('Quiz fetch error:', e.message);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
-  useEffect(() => { fetchQuizzes(); }, [fetchQuizzes]);
-  const onRefresh = async () => { setRefreshing(true); await fetchQuizzes(); setRefreshing(false); };
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [fetchData])
+  );
+  const onRefresh = async () => { setRefreshing(true); await fetchData(); setRefreshing(false); };
 
-  const handleCreate = async () => {
-    if (!form.title.trim()) return Alert.alert('Error', 'Quiz title is required');
-    try {
-      await createQuiz({
-        title: form.title,
-        school_id: user?.school_id,
-        created_by: user?.id || user?._id,
-        duration: parseInt(form.duration) || 15,
-        total_marks: parseInt(form.total_marks) || 100,
-        passing_marks: parseInt(form.passing_marks) || 40,
-        status: 'draft',
-        quiz_type: form.type,
-      });
-      setShowCreate(false);
-      setForm({ title: '', duration: '15', total_marks: '100', passing_marks: '40', type: 'mcq' });
-      fetchQuizzes();
-      Alert.alert('Success', 'Quiz created!');
-    } catch (e) { Alert.alert('Error', e.message); }
+  const addQuestionToList = () => {
+    if (!questionText.trim()) return Alert.alert('Error', 'Enter the question text.');
+    const filledOptions = options.filter(o => o.trim());
+    if (filledOptions.length < 2) return Alert.alert('Error', 'Enter at least 2 options.');
+    if (!options[correctIndex].trim()) return Alert.alert('Error', 'The correct answer option cannot be empty.');
+
+    setQuestions(prev => [...prev, {
+      question: questionText.trim(),
+      options: options.map(o => o.trim()),
+      correctAnswer: options[correctIndex].trim(),
+      points: 10,
+    }]);
+    setQuestionText('');
+    setOptions(['', '', '', '']);
+    setCorrectIndex(0);
   };
 
-  const handleDelete = (id) => {
-    Alert.alert('Delete Quiz', 'Are you sure?', [
-      { text: 'Cancel', style: 'cancel' },
+  const removeQuestion = (idx) => {
+    setQuestions(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleCreate = async () => {
+    if (!quizForm.title.trim()) return Alert.alert('Error', 'Quiz title is required.');
+    if (!quizForm.courseId) return Alert.alert('Error', 'Select a course for this quiz.');
+    if (questions.length === 0) return Alert.alert('Error', 'Add at least one question.');
+    
+    setSaving(true);
+    try {
+      await createQuiz({
+        title: quizForm.title,
+        course_id: quizForm.courseId,
+        school_id: user?.school_id,
+        duration: parseInt(quizForm.duration) || 15,
+        status: 'published',
+        questions,
+      });
+      setShowCreate(false);
+      setQuizForm({ title: '', duration: '15', courseId: '' });
+      setQuestions([]);
+      fetchData();
+      Alert.alert('Success', 'Quiz created! Students enrolled in this course will see it.');
+    } catch (e) { Alert.alert('Error', e.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = (quizId) => {
+    Alert.alert('Delete Quiz', 'Are you sure? This will delete the quiz and all student attempts.', [
+      { text: 'Cancel' },
       { text: 'Delete', style: 'destructive', onPress: async () => {
-        try { await deleteQuiz(id); fetchQuizzes(); } catch (e) { Alert.alert('Error', e.message); }
+        try {
+          await deleteQuiz(quizId);
+          fetchData();
+        } catch (e) { Alert.alert('Error', e.message); }
       }},
     ]);
   };
 
-  const handleAddQuestion = async () => {
-    if (!qForm.question.trim()) return Alert.alert('Error', 'Question text required');
-    try {
-      const options = JSON.stringify([
-        { label: 'A', text: qForm.optA },
-        { label: 'B', text: qForm.optB },
-        { label: 'C', text: qForm.optC },
-        { label: 'D', text: qForm.optD },
-      ]);
-      await addQuestion(selectedQuiz.id, {
-        question: qForm.question,
-        type: qForm.type,
-        options: qForm.type === 'mcq' ? options : '[]',
-        correct_answer: qForm.type === 'mcq' ? qForm.correct : '',
-        points: parseInt(qForm.points) || 10,
-      });
-      setQForm({ type: 'mcq', question: '', optA: '', optB: '', optC: '', optD: '', correct: 'A', points: '10' });
-      Alert.alert('Success', 'Question added!');
-    } catch (e) { Alert.alert('Error', e.message); }
+  const getCourseName = (courseId) => {
+    const c = courses.find(c => (c.id || c._id) === courseId);
+    return c?.title || 'Unknown Course';
   };
 
-  const statusColor = { draft: '#f59e0b', published: '#22c55e', closed: '#ef4444' };
-
-  const renderQuiz = ({ item }) => (
-    <View style={[styles.quizCard, { backgroundColor: COLORS.surfaceContainerLowest }]}>
-      <View style={{ flex: 1 }}>
-        <View style={styles.quizHeader}>
-          <Text style={[styles.quizTitle, { color: COLORS.onSurface }]}>{item.title}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: (statusColor[item.status] || '#94a3b8') + '20' }]}>
-            <Text style={[styles.statusText, { color: statusColor[item.status] || '#94a3b8' }]}>
-              {(item.status || 'draft').toUpperCase()}
-            </Text>
-          </View>
-        </View>
-        <View style={styles.quizMeta}>
-          <Text style={styles.metaText}><MaterialIcons name="timer" size={14} color="#64748b" /> {item.duration || 15} min</Text>
-          <Text style={styles.metaText}><MaterialIcons name="stars" size={14} color="#64748b" /> {item.total_marks || 0} marks</Text>
-        </View>
+  if (loading) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: COLORS.surface }]}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
       </View>
-      <View style={styles.quizActions}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => { setSelectedQuiz(item); setShowAddQ(true); }}>
-          <Ionicons name="add-circle" size={28} color="#6366f1" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => handleDelete(item.id)}>
-          <Ionicons name="trash" size={24} color="#ef4444" />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+    );
+  }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: COLORS.surface }]}>
-      <View style={styles.titleRow}>
-        <Text style={[styles.screenTitle, { color: COLORS.onSurface }]}>Quizzes</Text>
-        <TouchableOpacity style={styles.createBtn} onPress={() => setShowCreate(true)}>
-          <MaterialIcons name="add" size={20} color="#fff" />
-          <Text style={styles.createBtnText}>New Quiz</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { backgroundColor: COLORS.surface }]}>
+      <StitchHeader user={user} onSearchPress={() => {}} />
 
-      <FlatList
-        data={quizzes}
-        renderItem={renderQuiz}
-        keyExtractor={item => item.id}
-        contentContainerStyle={styles.listContent}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <MaterialIcons name="quiz" size={48} color={COLORS.onSurfaceVariant} />
-            <Text style={[styles.emptyText, { color: COLORS.onSurfaceVariant }]}>No quizzes yet</Text>
-            <Text style={[styles.emptySubtext, { color: COLORS.onSurfaceVariant }]}>Tap "New Quiz" to create one</Text>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+      >
+        <View style={styles.content}>
+          <Text style={[styles.mainTitle, { color: COLORS.onSurface }]}>Quiz Management</Text>
+          <Text style={[styles.subTitle, { color: COLORS.onSurfaceVariant }]}>Create and manage assessments for your courses</Text>
+
+          {/* Stats */}
+          <View style={styles.statsRow}>
+            <LinearGradient colors={[COLORS.primary, COLORS.primaryContainer]} style={styles.statCard}>
+              <Text style={styles.statLabel}>TOTAL QUIZZES</Text>
+              <Text style={styles.statValue}>{quizzes.length}</Text>
+            </LinearGradient>
+            <View style={[styles.statCard, { backgroundColor: COLORS.surfaceContainer }]}>
+              <Text style={[styles.statLabel, { color: COLORS.onSurfaceVariant }]}>TOTAL QUESTIONS</Text>
+              <Text style={[styles.statValue, { color: COLORS.onSurface }]}>
+                {quizzes.reduce((s, q) => s + (q.questions?.length || 0), 0)}
+              </Text>
+            </View>
           </View>
-        }
-      />
+
+          {/* Search */}
+          <View style={[styles.searchWrapper, { backgroundColor: COLORS.surfaceContainerLow, borderColor: COLORS.outlineVariant }]}>
+            <MaterialIcons name="search" size={20} color={COLORS.onSurfaceVariant} />
+            <TextInput
+              style={[styles.searchInput, { color: COLORS.onSurface }]}
+              placeholder="Search quizzes..."
+              placeholderTextColor={COLORS.onSurfaceVariant + '80'}
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+
+          {/* Quiz List */}
+          <View style={styles.quizList}>
+            {quizzes.filter(q => (q.title || '').toLowerCase().includes((search || '').toLowerCase())).map(item => (
+              <View key={item.id || item._id} style={[styles.quizCard, { backgroundColor: COLORS.surfaceContainerLow, borderColor: COLORS.outlineVariant }]}>
+                <View style={styles.cardInfo}>
+                  <Text style={[styles.quizTitle, { color: COLORS.onSurface }]}>{item.title}</Text>
+                  <Text style={[styles.courseBadge, { color: COLORS.tertiary, backgroundColor: COLORS.tertiary + '15' }]}>
+                    {item.courseId ? getCourseName(item.courseId) : 'No Course'}
+                  </Text>
+                  <View style={styles.quizMeta}>
+                    <View style={styles.metaItem}>
+                      <MaterialIcons name="help-outline" size={14} color={COLORS.onSurfaceVariant} />
+                      <Text style={[styles.metaText, { color: COLORS.onSurfaceVariant }]}>{item.questions?.length || 0} Questions</Text>
+                    </View>
+                    <View style={[styles.metaDivider, { backgroundColor: COLORS.outlineVariant }]} />
+                    <View style={styles.metaItem}>
+                      <MaterialIcons name="timer" size={14} color={COLORS.onSurfaceVariant} />
+                      <Text style={[styles.metaText, { color: COLORS.onSurfaceVariant }]}>{item.duration}m</Text>
+                    </View>
+                    <View style={[styles.metaDivider, { backgroundColor: COLORS.outlineVariant }]} />
+                    <View style={styles.metaItem}>
+                      <MaterialIcons name="star" size={14} color={COLORS.onSurfaceVariant} />
+                      <Text style={[styles.metaText, { color: COLORS.onSurfaceVariant }]}>{item.totalMarks || 0} pts</Text>
+                    </View>
+                  </View>
+                </View>
+                <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id || item._id)}>
+                  <MaterialIcons name="delete-outline" size={20} color={COLORS.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {quizzes.length === 0 && (
+              <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
+                <MaterialIcons name="quiz" size={48} color={COLORS.onSurfaceVariant + '40'} />
+                <Text style={{ color: COLORS.onSurfaceVariant, fontSize: 14 }}>No quizzes yet. Create one!</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* FAB */}
+      <TouchableOpacity style={[styles.fab, SHADOWS.primaryGlow]} onPress={() => setShowCreate(true)}>
+        <LinearGradient colors={[COLORS.primary, COLORS.primaryContainer]} style={styles.fabFill}>
+          <MaterialIcons name="add" size={32} color="white" />
+        </LinearGradient>
+      </TouchableOpacity>
 
       {/* Create Quiz Modal */}
       <Modal visible={showCreate} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { backgroundColor: COLORS.surfaceContainerLowest }]}>
-            <Text style={[styles.modalTitle, { color: COLORS.onSurface }]}>Create Quiz</Text>
+          <View style={[styles.modalBox, { backgroundColor: COLORS.surfaceContainerLow, borderColor: COLORS.outlineVariant }]}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={[styles.modalTitle, { color: COLORS.onSurface }]}>Create New Quiz</Text>
 
-            <View style={[styles.tabRow, { backgroundColor: COLORS.surfaceContainerLow }]}>
-              <TouchableOpacity style={[styles.tabBtn, form.type === 'mcq' && [styles.tabBtnActive, { backgroundColor: COLORS.surface }]]} onPress={() => setForm(p => ({...p, type: 'mcq'}))}>
-                <Text style={[styles.tabText, { color: COLORS.onSurfaceVariant }, form.type === 'mcq' && [styles.tabTextActive, { color: COLORS.onSurface }]]}>MCQ</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.tabBtn, form.type === 'written' && [styles.tabBtnActive, { backgroundColor: COLORS.surface }]]} onPress={() => setForm(p => ({...p, type: 'written'}))}>
-                <Text style={[styles.tabText, { color: COLORS.onSurfaceVariant }, form.type === 'written' && [styles.tabTextActive, { color: COLORS.onSurface }]]}>Written Answer</Text>
-              </TouchableOpacity>
-            </View>
+              {/* Quiz Title */}
+              <TextInput
+                style={[styles.input, { backgroundColor: COLORS.surfaceContainerLowest, color: COLORS.onSurface }]}
+                placeholder="Quiz Title"
+                placeholderTextColor={COLORS.onSurfaceVariant + '60'}
+                value={quizForm.title}
+                onChangeText={t => setQuizForm(p => ({ ...p, title: t }))}
+              />
 
-            <TextInput style={[styles.input, { backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Quiz Title" value={form.title} onChangeText={t => setForm(p => ({ ...p, title: t }))} />
-            <View style={styles.inputRow}>
-              <TextInput style={[styles.input, { flex: 1, backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Duration (min)" keyboardType="numeric" value={form.duration} onChangeText={t => setForm(p => ({ ...p, duration: t }))} />
-              <TextInput style={[styles.input, { flex: 1, backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Total Marks" keyboardType="numeric" value={form.total_marks} onChangeText={t => setForm(p => ({ ...p, total_marks: t }))} />
-            </View>
-            <TextInput style={[styles.input, { backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Passing Marks" keyboardType="numeric" value={form.passing_marks} onChangeText={t => setForm(p => ({ ...p, passing_marks: t }))} />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: COLORS.surfaceContainerLow }]} onPress={() => setShowCreate(false)}>
-                <Text style={[styles.cancelText, { color: COLORS.onSurfaceVariant }]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.submitBtn} onPress={handleCreate}>
-                <Text style={styles.submitText}>Create</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+              {/* Duration */}
+              <TextInput
+                style={[styles.input, { backgroundColor: COLORS.surfaceContainerLowest, color: COLORS.onSurface }]}
+                placeholder="Duration (minutes)"
+                placeholderTextColor={COLORS.onSurfaceVariant + '60'}
+                value={quizForm.duration}
+                onChangeText={t => setQuizForm(p => ({ ...p, duration: t }))}
+                keyboardType="numeric"
+              />
 
-      {/* Add Question Modal */}
-      <Modal visible={showAddQ} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <ScrollView contentContainerStyle={styles.modalScroll}>
-            <View style={[styles.modalContent, { backgroundColor: COLORS.surfaceContainerLowest }]}>
-              <Text style={[styles.modalTitle, { color: COLORS.onSurface }]}>Add Question</Text>
-              <Text style={[styles.modalSubtitle, { color: COLORS.onSurfaceVariant }]}>Quiz: {selectedQuiz?.title}</Text>
-              
-              <View style={[styles.tabRow, { backgroundColor: COLORS.surfaceContainerLow }]}>
-                <TouchableOpacity style={[styles.tabBtn, qForm.type === 'mcq' && [styles.tabBtnActive, { backgroundColor: COLORS.surface }]]} onPress={() => setQForm(p => ({...p, type: 'mcq'}))}>
-                  <Text style={[styles.tabText, { color: COLORS.onSurfaceVariant }, qForm.type === 'mcq' && [styles.tabTextActive, { color: COLORS.onSurface }]]}>MCQ</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.tabBtn, qForm.type === 'written' && [styles.tabBtnActive, { backgroundColor: COLORS.surface }]]} onPress={() => setQForm(p => ({...p, type: 'written'}))}>
-                  <Text style={[styles.tabText, { color: COLORS.onSurfaceVariant }, qForm.type === 'written' && [styles.tabTextActive, { color: COLORS.onSurface }]]}>Written Answer</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TextInput style={[styles.input, { height: 80, backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Question text" multiline value={qForm.question} onChangeText={t => setQForm(p => ({ ...p, question: t }))} />
-              
-              {qForm.type === 'mcq' && (
-                <>
-                  <TextInput style={[styles.input, { backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Option A" value={qForm.optA} onChangeText={t => setQForm(p => ({ ...p, optA: t }))} />
-                  <TextInput style={[styles.input, { backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Option B" value={qForm.optB} onChangeText={t => setQForm(p => ({ ...p, optB: t }))} />
-                  <TextInput style={[styles.input, { backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Option C" value={qForm.optC} onChangeText={t => setQForm(p => ({ ...p, optC: t }))} />
-                  <TextInput style={[styles.input, { backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Option D" value={qForm.optD} onChangeText={t => setQForm(p => ({ ...p, optD: t }))} />
-                  <View style={styles.inputRow}>
-                    <View style={[styles.input, { flex: 2, paddingVertical: 8, backgroundColor: COLORS.surfaceContainerLow }]}>
-                      <Text style={{ color: COLORS.onSurfaceVariant, fontSize: 12, marginBottom: 4 }}>Correct Answer</Text>
-                      <View style={styles.correctRow}>
-                        {['A', 'B', 'C', 'D'].map(opt => (
-                          <TouchableOpacity
-                            key={opt}
-                            style={[styles.correctOpt, qForm.correct === opt && styles.correctOptActive]}
-                            onPress={() => setQForm(p => ({ ...p, correct: opt }))}
-                          >
-                            <Text style={[styles.correctOptText, qForm.correct === opt && { color: '#fff' }]}>{opt}</Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    </View>
-                    <TextInput style={[styles.input, { flex: 1, marginTop: 18, backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Points" keyboardType="numeric" value={qForm.points} onChangeText={t => setQForm(p => ({ ...p, points: t }))} />
-                  </View>
-                </>
+              {/* Course Selector */}
+              <Text style={[styles.sectionLabel, { color: COLORS.onSurface }]}>Select Course *</Text>
+              {courses.length === 0 ? (
+                <View style={{ padding: 16, backgroundColor: COLORS.error + '15', borderRadius: 12, marginBottom: 20 }}>
+                  <Text style={{ color: COLORS.error, fontSize: 13, fontWeight: '700' }}>
+                    No courses available! You must create a course in the Content tab first before you can create a quiz.
+                  </Text>
+                </View>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }} contentContainerStyle={{ gap: 8 }}>
+                  {courses.map(c => (
+                    <TouchableOpacity
+                      key={c.id || c._id}
+                      style={[
+                        styles.courseChip,
+                        { backgroundColor: COLORS.surfaceContainerHighest },
+                        quizForm.courseId === (c.id || c._id) && { backgroundColor: COLORS.primary },
+                      ]}
+                      onPress={() => setQuizForm(p => ({ ...p, courseId: c.id || c._id }))}
+                    >
+                      <Text style={[
+                        styles.courseChipText, { color: COLORS.onSurface },
+                        quizForm.courseId === (c.id || c._id) && { color: 'white' },
+                      ]}>{c.title}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               )}
 
-              {qForm.type === 'written' && (
-                <View style={styles.inputRow}>
-                  <TextInput style={[styles.input, { flex: 1, backgroundColor: COLORS.surfaceContainerLow, color: COLORS.onSurface }]} placeholderTextColor={COLORS.onSurfaceVariant} placeholder="Points" keyboardType="numeric" value={qForm.points} onChangeText={t => setQForm(p => ({ ...p, points: t }))} />
-                  <View style={{flex:2}}></View>
+              {/* Added Questions */}
+              {questions.length > 0 && (
+                <View style={{ marginBottom: 20 }}>
+                  <Text style={[styles.sectionLabel, { color: COLORS.onSurface }]}>Questions Added ({questions.length})</Text>
+                  {questions.map((q, idx) => (
+                    <View key={idx} style={[styles.addedQuestion, { backgroundColor: COLORS.surfaceContainerLowest, borderColor: COLORS.outlineVariant }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.addedQText, { color: COLORS.onSurface }]}>Q{idx + 1}: {q.question}</Text>
+                        <Text style={{ fontSize: 11, color: COLORS.tertiary, marginTop: 2 }}>✓ {q.correctAnswer}</Text>
+                      </View>
+                      <TouchableOpacity onPress={() => removeQuestion(idx)} style={{ padding: 4 }}>
+                        <MaterialIcons name="close" size={18} color={COLORS.error} />
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
               )}
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={[styles.cancelBtn, { backgroundColor: COLORS.surfaceContainerLow }]} onPress={() => setShowAddQ(false)}>
-                  <Text style={[styles.cancelText, { color: COLORS.onSurfaceVariant }]}>Done</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.submitBtn} onPress={handleAddQuestion}>
-                  <Text style={styles.submitText}>Add Question</Text>
+              {/* Add Question Section */}
+              <View style={[styles.addQuestionSection, { backgroundColor: COLORS.surfaceContainerLowest, borderColor: COLORS.outlineVariant }]}>
+                <Text style={[styles.sectionLabel, { color: COLORS.onSurface, marginBottom: 12 }]}>Add a Question</Text>
+                
+                <TextInput
+                  style={[styles.input, { backgroundColor: COLORS.surfaceContainer, color: COLORS.onSurface }]}
+                  placeholder="Enter question text"
+                  placeholderTextColor={COLORS.onSurfaceVariant + '60'}
+                  value={questionText}
+                  onChangeText={setQuestionText}
+                  multiline
+                />
+
+                {options.map((opt, idx) => (
+                  <View key={idx} style={styles.optionRow}>
+                    <TouchableOpacity
+                      style={[
+                        styles.radioCircle,
+                        { borderColor: COLORS.outlineVariant },
+                        correctIndex === idx && { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+                      ]}
+                      onPress={() => setCorrectIndex(idx)}
+                    >
+                      {correctIndex === idx && <MaterialIcons name="check" size={12} color="white" />}
+                    </TouchableOpacity>
+                    <TextInput
+                      style={[styles.optionInput, { backgroundColor: COLORS.surfaceContainer, color: COLORS.onSurface }]}
+                      placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                      placeholderTextColor={COLORS.onSurfaceVariant + '60'}
+                      value={opt}
+                      onChangeText={t => {
+                        const newOpts = [...options];
+                        newOpts[idx] = t;
+                        setOptions(newOpts);
+                      }}
+                    />
+                  </View>
+                ))}
+                <Text style={{ fontSize: 10, color: COLORS.onSurfaceVariant, marginTop: 4 }}>Tap the circle to mark the correct answer</Text>
+
+                <TouchableOpacity
+                  style={[styles.addQBtn, { backgroundColor: COLORS.secondary }]}
+                  onPress={addQuestionToList}
+                >
+                  <MaterialIcons name="add" size={18} color="white" />
+                  <Text style={styles.addQBtnText}>ADD QUESTION</Text>
                 </TouchableOpacity>
               </View>
-            </View>
-          </ScrollView>
+
+              {/* Actions */}
+              <View style={styles.modalActionRow}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => { setShowCreate(false); setQuestions([]); setQuizForm({ title: '', duration: '15', courseId: '' }); }}>
+                  <Text style={[styles.cancelText, { color: COLORS.onSurfaceVariant }]}>CANCEL</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.submitBtn, { backgroundColor: COLORS.primary }]} onPress={handleCreate} disabled={saving}>
+                  {saving ? <ActivityIndicator size="small" color="white" /> : (
+                    <Text style={styles.submitText}>CREATE QUIZ ({questions.length} Q)</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
         </View>
       </Modal>
     </View>
@@ -238,45 +355,61 @@ const QuizManagementScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  titleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 16 },
-  screenTitle: { fontSize: 24, fontWeight: '800', color: '#0f172a' },
-  createBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#6366f1', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, gap: 4 },
-  createBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  listContent: { paddingHorizontal: 20, paddingBottom: 100 },
-  quizCard: { flexDirection: 'row', backgroundColor: '#fff', padding: 16, borderRadius: 14, marginBottom: 10, ...SHADOWS.sm },
-  quizHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 },
-  quizTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', flex: 1 },
-  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 },
-  statusText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  quizMeta: { flexDirection: 'row', gap: 16 },
-  metaText: { fontSize: 12, color: '#64748b', fontWeight: '500' },
-  quizActions: { justifyContent: 'center', gap: 4 },
-  iconBtn: { padding: 4 },
-  emptyState: { alignItems: 'center', paddingVertical: 60 },
-  emptyText: { fontSize: 16, color: '#64748b', fontWeight: '600', marginTop: 8 },
-  emptySubtext: { fontSize: 13, color: '#94a3b8' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 20 },
-  modalScroll: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 20 },
-  modalContent: { backgroundColor: '#fff', borderRadius: 20, padding: 24 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginBottom: 4 },
-  modalSubtitle: { fontSize: 13, color: '#64748b', marginBottom: 16 },
-  input: { backgroundColor: '#f1f5f9', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, color: '#0f172a', marginBottom: 10 },
-  inputRow: { flexDirection: 'row', gap: 10 },
-  correctRow: { flexDirection: 'row', gap: 8 },
-  correctOpt: { width: 36, height: 36, borderRadius: 18, borderWidth: 2, borderColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' },
-  correctOptActive: { backgroundColor: '#22c55e', borderColor: '#22c55e' },
-  correctOptText: { fontWeight: '700', color: '#64748b' },
-  modalButtons: { flexDirection: 'row', gap: 10, marginTop: 16 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#f1f5f9', alignItems: 'center' },
-  cancelText: { fontWeight: '700', color: '#64748b' },
-  submitBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#6366f1', alignItems: 'center' },
-  submitText: { fontWeight: '700', color: '#fff' },
-  tabRow: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderRadius: 10, padding: 4, marginBottom: 16 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 8 },
-  tabBtnActive: { backgroundColor: '#fff', ...SHADOWS.sm },
-  tabText: { fontSize: 13, fontWeight: '600', color: '#64748b' },
-  tabTextActive: { color: '#0f172a' },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  content: { padding: 24, paddingTop: 12 },
+  mainTitle: { fontSize: 32, fontFamily: FONTS.headline, fontWeight: '900', letterSpacing: -1 },
+  subTitle: { fontSize: 13, fontWeight: '600', marginTop: 4, marginBottom: 24 },
+
+  statsRow: { flexDirection: 'row', gap: 16, marginBottom: 24 },
+  statCard: { flex: 1, padding: 20, borderRadius: 20, ...SHADOWS.sm },
+  statLabel: { fontSize: 9, fontWeight: '800', letterSpacing: 1, color: 'rgba(255,255,255,0.7)' },
+  statValue: { fontSize: 32, fontWeight: '900', color: 'white', marginTop: 4 },
+
+  searchWrapper: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, height: 48, borderRadius: 14, borderWidth: 1, marginBottom: 20 },
+  searchInput: { flex: 1, fontSize: 14, fontWeight: '600' },
+
+  quizList: { gap: 14 },
+  quizCard: { padding: 18, borderRadius: 20, borderWidth: 1, flexDirection: 'row', alignItems: 'flex-start' },
+  cardInfo: { flex: 1 },
+  quizTitle: { fontSize: 16, fontWeight: '800', marginBottom: 6 },
+  courseBadge: { fontSize: 10, fontWeight: '800', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, alignSelf: 'flex-start', marginBottom: 8, overflow: 'hidden' },
+  quizMeta: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaText: { fontSize: 11, fontWeight: '600' },
+  metaDivider: { width: 3, height: 3, borderRadius: 2 },
+  deleteBtn: { padding: 8 },
+
+  fab: { position: 'absolute', bottom: 100, right: 24, width: 60, height: 60, borderRadius: 30 },
+  fabFill: { flex: 1, borderRadius: 30, alignItems: 'center', justifyContent: 'center' },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'flex-end' },
+  modalBox: { borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, maxHeight: '92%', borderWidth: 1 },
+  modalTitle: { fontSize: 24, fontWeight: '900', marginBottom: 20 },
+
+  input: { padding: 16, borderRadius: 14, fontSize: 14, fontWeight: '600', marginBottom: 12 },
+  sectionLabel: { fontSize: 13, fontWeight: '800', letterSpacing: 0.5, marginBottom: 8 },
+
+  courseChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: RADIUS.full },
+  courseChipText: { fontSize: 12, fontWeight: '700' },
+
+  addedQuestion: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, borderWidth: 1, marginBottom: 8 },
+  addedQText: { fontSize: 13, fontWeight: '600' },
+
+  addQuestionSection: { padding: 16, borderRadius: 16, borderWidth: 1, marginBottom: 20 },
+
+  optionRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  radioCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  optionInput: { flex: 1, padding: 12, borderRadius: 10, fontSize: 13, fontWeight: '600' },
+
+  addQBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12, borderRadius: 12, marginTop: 12 },
+  addQBtnText: { color: 'white', fontSize: 11, fontWeight: '900' },
+
+  modalActionRow: { flexDirection: 'row', gap: 12, marginTop: 8, paddingBottom: 20 },
+  cancelBtn: { flex: 1, paddingVertical: 16, alignItems: 'center' },
+  cancelText: { fontSize: 12, fontWeight: '800' },
+  submitBtn: { flex: 2, paddingVertical: 16, borderRadius: 14, alignItems: 'center' },
+  submitText: { color: 'white', fontSize: 12, fontWeight: '900' },
 });
 
 export default QuizManagementScreen;

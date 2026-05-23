@@ -1,207 +1,150 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Modal, TextInput, ActivityIndicator, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Linking, Image, Dimensions } from 'react-native';
 import { MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
-import { SHADOWS } from '../../config/theme';
-import { updateMyProfile } from '../../services/authService';
+import { COLORS, FONTS, RADIUS, SHADOWS } from '../../config/theme';
 import { useTheme } from '../../context/ThemeContext';
+import StitchHeader from '../../components/StitchHeader';
+
+const { width } = Dimensions.get('window');
 
 const SettingsScreen = () => {
   const insets = useSafeAreaInsets();
-  const { user, logout, refreshUser } = useAuth();
-  const { isDark, toggleTheme, COLORS } = useTheme();
-  
-  const [isEditModalVisible, setEditModalVisible] = useState(false);
-  const [editForm, setEditForm] = useState({
-    name: user?.name || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-  });
-  const [isSaving, setIsSaving] = useState(false);
+  const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
 
-  const handleExportCSV = () => {
-    Alert.alert('Export', 'Attendance CSV export will be available in the next update.');
-  };
+  const renderManagementTile = (icon, label, color) => (
+    <TouchableOpacity style={[styles.tile, { backgroundColor: COLORS.surfaceContainerLow, borderColor: COLORS.tabBarBorder }]}>
+      <View style={[styles.tileIconBox, { backgroundColor: color + '15' }]}>
+        <MaterialIcons name={icon} size={28} color={color} />
+      </View>
+      <Text style={[styles.tileLabel, { color: COLORS.onSurface }]}>{label}</Text>
+    </TouchableOpacity>
+  );
 
-  const handleSaveProfile = async () => {
-    try {
-      if (!editForm.name.trim() || !editForm.email.trim()) {
-        return Alert.alert('Error', 'Name and Email are required.');
-      }
-      setIsSaving(true);
-      await updateMyProfile(editForm);
-      if (refreshUser) await refreshUser();
-      Alert.alert('Success', 'Profile updated successfully.');
-      setEditModalVisible(false);
-    } catch (e) {
-      Alert.alert('Error', e.response?.data?.message || 'Failed to update profile.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const menuItems = [
-    { section: 'Account', items: [
-      { icon: 'person', label: 'Profile', subtitle: user?.name || 'Mentor', onPress: () => setEditModalVisible(true) },
-      { icon: 'email', label: 'Email', subtitle: user?.email || '-', onPress: () => setEditModalVisible(true) },
-      { icon: 'phone', label: 'Phone', subtitle: user?.phone || 'Not set', onPress: () => setEditModalVisible(true) },
-      { icon: 'school', label: 'Role', subtitle: (user?.role || 'mentor').toUpperCase(), onPress: () => {} },
-    ]},
-    { section: 'Data', items: [
-      { icon: 'file-download', label: 'Export Attendance CSV', subtitle: 'Download attendance records', onPress: handleExportCSV },
-      { icon: 'backup', label: 'Backup Data', subtitle: 'Coming soon', onPress: () => {} },
-    ]},
-    { section: 'App', items: [
-      { icon: 'dark-mode', label: 'Dark Mode', subtitle: 'Toggle app theme', isToggle: true, value: isDark, onToggle: toggleTheme },
-      { icon: 'info', label: 'Version', subtitle: '2.0.0 (PostgreSQL)', onPress: () => {} },
-      { icon: 'help', label: 'Help & Support', subtitle: 'Contact admin', onPress: () => Linking.openURL('mailto:support@4bitlabs.com') },
-    ]},
-  ];
+  const renderPreferenceItem = (icon, label, value, isDestructive, onPress) => (
+    <TouchableOpacity 
+      style={styles.prefItem} 
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
+      <View style={styles.prefLeft}>
+        <MaterialIcons name={icon} size={22} color={isDestructive ? '#ef4444' : COLORS.onSurfaceVariant} />
+        <Text style={[styles.prefLabel, { color: isDestructive ? '#ef4444' : COLORS.onSurface }]}>{label}</Text>
+      </View>
+      <View style={styles.prefRight}>
+        {value && <Text style={[styles.prefValue, { color: COLORS.onSurfaceVariant }]}>{value}</Text>}
+        <MaterialIcons name="chevron-right" size={20} color={COLORS.onSurfaceVariant} />
+      </View>
+    </TouchableOpacity>
+  );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: COLORS.surface }]}>
-      <Text style={[styles.header, { color: COLORS.onSurface }]}>Settings</Text>
+    <View style={[styles.container, { backgroundColor: COLORS.surface }]}>
+      <StitchHeader user={user} onSearchPress={() => {}} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Profile Card */}
-        <View style={[styles.profileCard, { backgroundColor: COLORS.surfaceContainerLowest }]}>
-          <View style={[styles.avatarLarge, { backgroundColor: COLORS.primary }]}>
-            <Text style={styles.avatarLargeText}>{(user?.name || 'M')[0].toUpperCase()}</Text>
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
+      >
+        <View style={styles.content}>
+          <View style={styles.titleSection}>
+            <Text style={[styles.welcomeLabel, { color: COLORS.onSurfaceVariant }]}>WELCOME BACK, ADMIN</Text>
+            <Text style={[styles.mainTitle, { color: COLORS.onSurface }]}>Settings & Management</Text>
           </View>
-          <Text style={[styles.profileName, { color: COLORS.onSurface }]}>{user?.name || 'Mentor'}</Text>
-          <Text style={[styles.profileEmail, { color: COLORS.onSurfaceVariant }]}>{user?.email}</Text>
-          <View style={[styles.roleBadge, { backgroundColor: COLORS.primaryFixed }]}>
-            <MaterialCommunityIcons name="shield-check" size={14} color={COLORS.primary} />
-            <Text style={[styles.roleBadgeText, { color: COLORS.primary }]}>{(user?.role || 'mentor').toUpperCase()}</Text>
+
+          {/* Management Bento Grid */}
+          <View style={styles.tileGrid}>
+            {renderManagementTile('security', 'Role Controls', COLORS.primary)}
+            {renderManagementTile('analytics', 'Analytics Dashboard', COLORS.secondary)}
+            {renderManagementTile('health-and-safety', 'System Health', COLORS.tertiary)}
+            {renderManagementTile('vpn-key', 'Security Keys', COLORS.onSurfaceVariant)}
           </View>
-        </View>
 
-        {/* Menu Sections */}
-        {menuItems.map((section, si) => (
-          <View key={si} style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: COLORS.onSurfaceVariant }]}>{section.section}</Text>
-            {section.items.map((item, ii) => (
-              <TouchableOpacity key={ii} style={[styles.menuItem, { backgroundColor: COLORS.surfaceContainerLowest }]} onPress={item.onPress} activeOpacity={0.7} disabled={!item.onPress}>
-                <View style={[styles.menuIcon, { backgroundColor: COLORS.surfaceContainerLow }]}>
-                  <MaterialIcons name={item.icon} size={20} color={COLORS.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.menuLabel, { color: COLORS.onSurface }]}>{item.label}</Text>
-                  <Text style={[styles.menuSubtitle, { color: COLORS.onSurfaceVariant }]}>{item.subtitle}</Text>
-                </View>
-                {item.isToggle ? (
-                  <Switch value={item.value} onValueChange={item.onToggle} trackColor={{ false: '#767577', true: COLORS.primary }} />
-                ) : (
-                  item.onPress && item.label !== 'Role' && item.label !== 'Version' && (
-                    <MaterialIcons name="chevron-right" size={20} color={COLORS.onSurfaceVariant} />
-                  )
-                )}
-              </TouchableOpacity>
-            ))}
+          {/* Account Snippet */}
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionLabel, { color: COLORS.onSurface }]}>Account</Text>
           </View>
-        ))}
-
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={() => {
-          Alert.alert('Logout', 'Are you sure?', [
-            { text: 'Cancel' },
-            { text: 'Logout', style: 'destructive', onPress: logout },
-          ]);
-        }}>
-          <MaterialIcons name="logout" size={20} color="#ef4444" />
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Edit Profile Modal */}
-      <Modal visible={isEditModalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Profile</Text>
-              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color="#64748b" />
-              </TouchableOpacity>
+          <View style={[styles.profileSnippet, { backgroundColor: COLORS.surfaceContainerLow, borderColor: COLORS.tabBarBorder }]}>
+            <Image 
+              source={{ uri: user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'A')}&background=ba0013&color=fff` }}
+              style={[styles.snippetAvatar, { backgroundColor: COLORS.surfaceContainerHighest }]}
+            />
+            <View style={styles.snippetInfo}>
+              <Text style={[styles.snippetName, { color: COLORS.onSurface }]}>{user?.name || 'Admin User'}</Text>
+              <View style={styles.roleRow}>
+                <View style={styles.activePing} />
+                <Text style={[styles.snippetRole, { color: COLORS.onSurfaceVariant }]}>{(user?.role || 'Administrator').toUpperCase()}</Text>
+              </View>
             </View>
-
-            <ScrollView contentContainerStyle={{ gap: 16 }}>
-              <View>
-                <Text style={styles.inputLabel}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.name}
-                  onChangeText={v => setEditForm({ ...editForm, name: v })}
-                  placeholder="Enter full name"
-                />
-              </View>
-
-              <View>
-                <Text style={styles.inputLabel}>Email Address</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.email}
-                  onChangeText={v => setEditForm({ ...editForm, email: v })}
-                  placeholder="Enter new email"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                <Text style={styles.inputHint}>This will also update your login credentials.</Text>
-              </View>
-
-              <View>
-                <Text style={styles.inputLabel}>Phone (Optional)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={editForm.phone}
-                  onChangeText={v => setEditForm({ ...editForm, phone: v })}
-                  placeholder="Enter phone number"
-                  keyboardType="phone-pad"
-                />
-              </View>
-            </ScrollView>
-
-            <TouchableOpacity style={styles.saveBtn} onPress={handleSaveProfile} disabled={isSaving}>
-              {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+            <TouchableOpacity style={[styles.editBtn, { backgroundColor: COLORS.surfaceContainerHighest }]}>
+              <Text style={[styles.editBtnText, { color: COLORS.onSurface }]}>Edit</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Personal Preferences */}
+          <View style={[styles.sectionHeader, { marginTop: 40 }]}>
+            <Text style={[styles.sectionLabel, { color: COLORS.onSurface }]}>Personal Preferences</Text>
+          </View>
+          <View style={[styles.prefList, { backgroundColor: COLORS.surfaceContainerLow, borderColor: COLORS.tabBarBorder }]}>
+            {renderPreferenceItem('dark-mode', 'Change Theme', isDark ? 'Dark Mode' : 'Light Mode', false, toggleTheme)}
+            {renderPreferenceItem('notifications-active', 'Notifications', 'Enabled', false, () => {})}
+            {renderPreferenceItem('data-usage', 'Data & Export', null, false, () => {})}
+            <View style={[styles.listDivider, { backgroundColor: COLORS.tabBarBorder }]} />
+            {renderPreferenceItem('logout', 'Sign Out of Account', null, true, () => {
+              Alert.alert('Logout', 'Are you sure you want to sign out?', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Logout', style: 'destructive', onPress: logout },
+              ]);
+            })}
+          </View>
         </View>
-      </Modal>
+      </ScrollView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  header: { fontSize: 24, fontWeight: '800', color: '#0f172a', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-  scrollContent: { paddingHorizontal: 20 },
-  profileCard: { alignItems: 'center', backgroundColor: '#fff', padding: 24, borderRadius: 20, marginBottom: 24, ...SHADOWS.md },
-  avatarLarge: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#6366f1', alignItems: 'center', justifyContent: 'center', marginBottom: 12 },
-  avatarLargeText: { color: '#fff', fontSize: 30, fontWeight: '800' },
-  profileName: { fontSize: 20, fontWeight: '800', color: '#0f172a', marginBottom: 2 },
-  profileEmail: { fontSize: 14, color: '#64748b', marginBottom: 8 },
-  roleBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#eef2ff', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, gap: 6 },
-  roleBadgeText: { fontSize: 11, fontWeight: '700', color: '#6366f1', letterSpacing: 1 },
-  section: { marginBottom: 20 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#94a3b8', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 },
-  menuItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', padding: 14, borderRadius: 14, marginBottom: 6, gap: 12, ...SHADOWS.sm },
-  menuIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#eef2ff', alignItems: 'center', justifyContent: 'center' },
-  menuLabel: { fontSize: 15, fontWeight: '600', color: '#0f172a' },
-  menuSubtitle: { fontSize: 12, color: '#64748b' },
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fef2f2', padding: 16, borderRadius: 14, marginTop: 8, gap: 8 },
-  logoutText: { fontSize: 16, fontWeight: '700', color: '#ef4444' },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '80%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#0f172a' },
-  inputLabel: { fontSize: 12, fontWeight: '700', color: '#334155', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 },
-  inputHint: { fontSize: 11, color: '#94a3b8', marginTop: 4 },
-  input: { backgroundColor: '#f8fafc', borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 12, padding: 14, fontSize: 15, color: '#0f172a' },
-  saveBtn: { backgroundColor: '#6366f1', padding: 18, borderRadius: 14, alignItems: 'center', marginTop: 24, marginBottom: 20 },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  container: { flex: 1 },
+  content: { padding: 24, paddingTop: 12 },
+  titleSection: { marginBottom: 32 },
+  welcomeLabel: { fontSize: 10, fontFamily: FONTS.label, letterSpacing: 2, fontWeight: '800' },
+  mainTitle: { fontSize: 32, fontFamily: FONTS.headline, fontWeight: '900', letterSpacing: -1 },
+
+  tileGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginBottom: 40 },
+  tile: { 
+    width: (width - 48 - 16) / 2, aspectRatio: 1, 
+    borderRadius: 24, 
+    padding: 24, justifyContent: 'space-between', borderWidth: 1, 
+    ...SHADOWS.md 
+  },
+  tileIconBox: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  tileLabel: { fontSize: 13, fontFamily: FONTS.headline, fontWeight: '800' },
+
+  sectionHeader: { marginBottom: 16 },
+  sectionLabel: { fontSize: 18, fontFamily: FONTS.headline, fontWeight: '800' },
+
+  profileSnippet: { 
+    flexDirection: 'row', alignItems: 'center', 
+    padding: 20, borderRadius: 24, borderWidth: 1, gap: 16 
+  },
+  snippetAvatar: { width: 64, height: 64, borderRadius: 32 },
+  snippetInfo: { flex: 1 },
+  snippetName: { fontSize: 18, fontFamily: FONTS.headline, fontWeight: '800' },
+  roleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  activePing: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#4ade80' },
+  snippetRole: { fontSize: 10, fontFamily: FONTS.label, fontWeight: '900', letterSpacing: 1 },
+  editBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full },
+  editBtnText: { fontSize: 12, fontFamily: FONTS.label, fontWeight: '800' },
+
+  prefList: { borderRadius: 24, paddingVertical: 8, borderWidth: 1 },
+  prefItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 16 },
+  prefLeft: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  prefLabel: { fontSize: 15, fontFamily: FONTS.body, fontWeight: '600' },
+  prefRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  prefValue: { fontSize: 13, fontFamily: FONTS.body, fontWeight: '600' },
+  listDivider: { height: 1, marginHorizontal: 20, marginVertical: 4 },
 });
 
 export default SettingsScreen;

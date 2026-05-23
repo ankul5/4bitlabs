@@ -48,7 +48,13 @@ const User = {
        RETURNING *`,
       [uid, name, email, phone, avatar, role, school_id || null, is_verified]
     );
-    return formatUser(rows[0]);
+
+    // Supabase RPC might not return rows from RETURNING — fallback to query
+    if (rows && rows.length > 0) {
+      return formatUser(rows[0]);
+    }
+    // Fallback: fetch the just-inserted user
+    return this.findByUid(uid);
   },
 
   async findByIdAndUpdate(id, data) {

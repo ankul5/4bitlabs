@@ -158,6 +158,12 @@ const createQuiz = async (req, res, next) => {
     const userId = req.user._id || req.user.id;
     const quiz = await Quiz.create({ ...req.body, created_by: userId });
     notificationService.notifySchool(quiz.schoolId, 'New Quiz Available!', `"${quiz.title}" is now available.`).catch(() => {});
+
+    // Real-time: emit to course room so only enrolled students see it
+    if (req.io && quiz.courseId) {
+      req.io.to(`course_${quiz.courseId}`).emit('quiz:created', quiz);
+    }
+
     res.status(201).json(successResponse('Quiz created.', { quiz }));
   } catch (error) {
     next(error);
@@ -187,6 +193,19 @@ const addManualPoints = async (req, res, next) => {
     if (req.io) req.io.to(`leaderboard_${courseId}`).emit('leaderboard:update', { userId: studentId, points });
     const student = await User.findById(studentId);
     res.json(successResponse(`${points} points added.`, { student: { name: student?.name, points: student?.points } }));
+  } catch (error) {
+    next(error);
+  }
+};
+
+// ─── POST /api/v1/quizzes/:id/questions — Add question to quiz ───────────────
+const addQuestionToQuiz = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const quiz = await Quiz.findById(id);
+    if (!quiz) return res.status(404).json(errorResponse('Quiz not found.'));
+    const question = await Quiz.addQuestion(id, req.body);
+    res.status(201).json(successResponse('Question added.', { question }));
   } catch (error) {
     next(error);
   }
@@ -290,4 +309,4 @@ const gradeAttempt = async (req, res, next) => {
   }
 };
 
-module.exports = { getQuizzes, getQuiz, submitQuiz, createQuiz, updateQuiz, addManualPoints, deleteQuiz, getQuizAttempts, gradeAttempt };
+module.exports = { getQuizzes, getQuiz, submitQuiz, createQuiz, updateQuiz, addManualPoints, deleteQuiz, getQuizAttempts, gradeAttempt, addQuestionToQuiz };

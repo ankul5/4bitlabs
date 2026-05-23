@@ -66,10 +66,41 @@ const getCourseEnrollments = async (req, res, next) => {
   try {
     const { courseId } = req.params;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const limit = parseInt(req.query.limit) || 50;
     const offset = (page - 1) * limit;
     const total = await Enrollment.countDocuments({ course_id: courseId, status: 'active' });
-    const enrollments = await Enrollment.find({ course_id: courseId, status: 'active', limit, offset });
+
+    // Fetch enrollments with student + school info
+    const { rows } = await pool.query(
+      `SELECT e.*, u.name as student_name, u.email as student_email, u.avatar as student_avatar, u.phone as student_phone,
+              s.name as school_name, s.code as school_code, u.created_at as student_joined
+       FROM enrollments e
+       LEFT JOIN users u ON e.user_id = u.id
+       LEFT JOIN schools s ON u.school_id = s.id
+       WHERE e.course_id = $1 AND e.status = 'active'
+       ORDER BY e.enrolled_at DESC
+       LIMIT $2 OFFSET $3`,
+      [courseId, limit, offset]
+    );
+
+    const enrollments = rows.map(r => ({
+      id: r.id, _id: r.id,
+      userId: r.user_id,
+      courseId: r.course_id,
+      status: r.status,
+      enrolledAt: r.enrolled_at,
+      progress: parseFloat(r.progress) || 0,
+      student: {
+        id: r.user_id,
+        name: r.student_name,
+        email: r.student_email,
+        avatar: r.student_avatar,
+        phone: r.student_phone,
+        joinedAt: r.student_joined,
+        school: r.school_name ? { name: r.school_name, code: r.school_code } : null,
+      },
+    }));
+
     res.json(successResponse('Course enrollments fetched.', { enrollments, total, page, totalPages: Math.ceil(total / limit) }));
   } catch (error) {
     next(error);

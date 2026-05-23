@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { USER_DATA } from '../data/mockData';
 
@@ -11,12 +12,12 @@ const SidebarContent = ({ onClose }) => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { user, logout } = useAuth();
+  const { themeVersion } = useTheme();
   
   const displayUser = user || USER_DATA;
 
   const navigateTo = (screen, params) => {
     onClose();
-    // Assuming navigation stack is MainTabs or similar
     if (screen === 'Profile') {
       navigation.navigate('Profile');
     } else {
@@ -58,7 +59,6 @@ const SidebarContent = ({ onClose }) => {
 
       {/* Nav Links */}
       <View style={styles.navLinks}>
-        {/* We derive current active visually from route if possible, defaulting to Home for mockup */}
         <NavItem label="Home" icon="home" screen="Home" active={true} />
         <NavItem label="Course" icon="school" screen="Course" />
         <NavItem label="Store" icon="store" screen="Store" />
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: SPACING.xl,
-    backgroundColor: '#f8fafc', // slate-50
+    backgroundColor: COLORS.surface,
   },
   brandRow: {
     marginBottom: SPACING.xl,
@@ -96,16 +96,16 @@ const styles = StyleSheet.create({
   brandText: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#b91c1c', // red-700
+    color: COLORS.primary,
     letterSpacing: -0.5,
   },
   profileCard: {
-    backgroundColor: COLORS.white,
+    backgroundColor: COLORS.surfaceContainerLow,
     padding: SPACING.lg,
     borderRadius: RADIUS.lg,
     marginBottom: SPACING['2xl'],
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.02)',
+    borderColor: COLORS.tabBarBorder,
     ...SHADOWS.sm,
   },
   profileHeaderRow: {
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#fef2f2', // red-50
+    backgroundColor: COLORS.surfaceContainerHighest,
   },
   profileTextCol: {
     flex: 1,
@@ -160,13 +160,15 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   navItemActive: {
-    backgroundColor: '#fef2f2', // red-50
+    backgroundColor: COLORS.primary + '15',
   },
   navIcon: {
     fontSize: 20,
+    color: COLORS.onSurfaceVariant,
     opacity: 0.6,
   },
   navIconActive: {
+    color: COLORS.primary,
     opacity: 1,
   },
   navLabel: {
@@ -175,13 +177,13 @@ const styles = StyleSheet.create({
     color: COLORS.onSurfaceVariant,
   },
   navLabelActive: {
-    color: '#b91c1c', // red-700
+    color: COLORS.primary,
     fontWeight: '700',
   },
   bottomSection: {
     paddingTop: SPACING.xl,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.05)',
+    borderTopColor: COLORS.tabBarBorder,
   },
   logoutBtn: {
     flexDirection: 'row',
@@ -193,6 +195,7 @@ const styles = StyleSheet.create({
   },
   logoutIcon: {
     fontSize: 20,
+    color: COLORS.onSurfaceVariant,
     opacity: 0.6,
   },
   logoutLabel: {

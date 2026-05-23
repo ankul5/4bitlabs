@@ -1,6 +1,6 @@
 const express = require('express');
 const {
-  getCourses, getCourse, createCourse, updateCourse,
+  getPublicCourses, getCourses, getCourse, createCourse, updateCourse,
   addLecture, updateLecture, getHomeSummary, deleteCourse, deleteLecture,
 } = require('../controllers/courseController');
 const { protect } = require('../middleware/authMiddleware');
@@ -10,6 +10,9 @@ const {
 } = require('../middleware/validators');
 
 const router = express.Router();
+
+// GET  /api/v1/courses/public         — List all global courses (unprotected for registration dropdown)
+router.get('/public', getPublicCourses);
 
 // GET  /api/v1/courses/home-summary  — Dashboard data for student
 router.get('/home-summary', protect, getHomeSummary);

@@ -26,7 +26,9 @@ const Announcement = {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [title, body, type, school_id || null, course_id || null, created_by, image_url, link_url, is_pinned, expires_at || null, target_roles]
     );
-    return formatAnnouncement(rows[0]);
+    if (rows && rows.length > 0) return formatAnnouncement(rows[0]);
+    const { rows: fallback } = await pool.query('SELECT * FROM announcements WHERE title = $1 ORDER BY created_at DESC LIMIT 1', [title]);
+    return fallback[0] ? formatAnnouncement(fallback[0]) : { title };
   },
 
   async findByIdAndUpdate(id, data) {

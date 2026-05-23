@@ -4,6 +4,36 @@ const registerSocketHandlers = (io) => {
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
+    // ─── Data-sync rooms (students join their school + enrolled courses) ──────
+    socket.on('join:school', (schoolId) => {
+      if (schoolId) {
+        socket.join(`school_${schoolId}`);
+        console.log(`Socket ${socket.id} joined school room: ${schoolId}`);
+      }
+    });
+    socket.on('leave:school', (schoolId) => {
+      if (schoolId) socket.leave(`school_${schoolId}`);
+    });
+
+    socket.on('join:course', (courseId) => {
+      if (courseId) {
+        socket.join(`course_${courseId}`);
+        console.log(`Socket ${socket.id} joined course room: ${courseId}`);
+      }
+    });
+    socket.on('leave:course', (courseId) => {
+      if (courseId) socket.leave(`course_${courseId}`);
+    });
+
+    // Global room — everyone joins (for school creation events visible to all)
+    socket.join('global');
+
+    // ─── Admin room (for admin-specific events like student registrations) ────
+    socket.on('join:admin', () => {
+      socket.join('admin');
+      console.log(`Socket ${socket.id} joined admin room`);
+    });
+
     // ─── Leaderboard rooms ────────────────────────────────────────────────────
     socket.on('join:leaderboard', (courseId) => {
       socket.join(`leaderboard_${courseId}`);

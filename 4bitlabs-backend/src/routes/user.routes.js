@@ -14,7 +14,7 @@ const router = express.Router();
 router.put('/me', protect, updateMe);
 
 // GET  /api/v1/users                     — List all users (paginated, filterable)
-router.get('/', protect, authorize('school_admin', 'super_admin'), getUsers);
+router.get('/', protect, authorize('school_admin', 'super_admin', 'teacher', 'mentor'), getUsers);
 
 // GET  /api/v1/users/:id                 — Get user detail
 router.get('/:id', protect, authorize('school_admin', 'super_admin'), getUser);

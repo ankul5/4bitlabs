@@ -1,60 +1,72 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, Animated } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SHADOWS } from '../config/theme';
+import { COLORS, FONTS, SHADOWS, RADIUS } from '../config/theme';
+import { useTheme } from '../context/ThemeContext';
+
 
 import MentorDashboardScreen from '../screens/admin/MentorDashboardScreen';
-import StudentManagementScreen from '../screens/admin/StudentManagementScreen';
-import QuizManagementScreen from '../screens/admin/QuizManagementScreen';
 import ContentManagementScreen from '../screens/admin/ContentManagementScreen';
-import SettingsScreen from '../screens/admin/SettingsScreen';
+import StudentManagementScreen from '../screens/admin/StudentManagementScreen';
+import MentorProfileScreen from '../screens/admin/MentorProfileScreen';
 
 const Tab = createBottomTabNavigator();
 
-const TabIcon = ({ label, icon, focused }) => (
-  <View style={[tabStyles.tabItem, focused && tabStyles.tabItemActive]}>
-    <MaterialIcons
-      name={icon}
-      size={22}
-      style={[tabStyles.tabIcon, focused && tabStyles.tabIconActive]}
-    />
-    <Text style={[tabStyles.tabLabel, focused && tabStyles.tabLabelActive]}>
-      {label}
-    </Text>
-  </View>
-);
+const TabIcon = ({ label, icon, focused }) => {
+  const { COLORS: C } = useTheme();
+
+  return (
+    <View style={[
+      tabStyles.tabItem,
+      focused && { backgroundColor: C.primary + '18' },
+    ]}>
+      <MaterialIcons
+        name={icon}
+        size={22}
+        color={focused ? C.primary : C.onSurfaceVariant}
+      />
+      <Text
+        style={[
+          tabStyles.tabLabel,
+          { color: focused ? C.primary : C.onSurfaceVariant },
+          focused && { fontWeight: '900' },
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+};
 
 const MentorTabs = () => {
   const insets = useSafeAreaInsets();
+  const { COLORS: C, themeVersion } = useTheme();
 
   return (
     <Tab.Navigator
+      key={`mentor-tabs-${themeVersion}`}
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 70 + insets.bottom,
-          paddingBottom: insets.bottom,
-          backgroundColor: 'rgba(15, 23, 42, 0.95)',
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
+          bottom: Platform.OS === 'ios' ? insets.bottom : 16,
+          left: 16,
+          right: 16,
+          height: 68,
+          backgroundColor: C.surfaceContainerLowest || C.tabBarBg,
+          borderRadius: 20,
           borderTopWidth: 0,
+          borderWidth: 1,
+          borderColor: C.outlineVariant || 'rgba(255,255,255,0.08)',
           ...SHADOWS.lg,
-          ...Platform.select({
-            ios: {
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: -8 },
-              shadowOpacity: 0.15,
-              shadowRadius: 24,
-            },
-            android: { elevation: 20 },
-          }),
+          elevation: 12,
+        },
+        tabBarItemStyle: {
+          paddingVertical: 8,
         },
       }}
     >
@@ -63,25 +75,7 @@ const MentorTabs = () => {
         component={MentorDashboardScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="HOME" icon="dashboard" focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Students"
-        component={StudentManagementScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="STUDENTS" icon="people" focused={focused} />
-          ),
-        }}
-      />
-      <Tab.Screen
-        name="Quizzes"
-        component={QuizManagementScreen}
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <TabIcon label="QUIZZES" icon="quiz" focused={focused} />
+            <TabIcon label="Dashboard" icon="dashboard" focused={focused} />
           ),
         }}
       />
@@ -90,16 +84,25 @@ const MentorTabs = () => {
         component={ContentManagementScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="CONTENT" icon="library-books" focused={focused} />
+            <TabIcon label="Content" icon="library-books" focused={focused} />
           ),
         }}
       />
       <Tab.Screen
-        name="Settings"
-        component={SettingsScreen}
+        name="Students"
+        component={StudentManagementScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="MORE" icon="settings" focused={focused} />
+            <TabIcon label="Students" icon="people" focused={focused} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={MentorProfileScreen}
+        options={{
+          tabBarIcon: ({ focused }) => (
+            <TabIcon label="Profile" icon="person" focused={focused} />
           ),
         }}
       />
@@ -111,30 +114,16 @@ const tabStyles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 14,
-  },
-  tabItemActive: {
-    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-  },
-  tabIcon: {
-    fontSize: 20,
-    marginBottom: 2,
-    color: '#64748b',
-  },
-  tabIconActive: {
-    color: '#818cf8',
+    gap: 3,
+    minWidth: 64,
   },
   tabLabel: {
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1.2,
-    color: '#64748b',
-    textTransform: 'uppercase',
-  },
-  tabLabelActive: {
-    color: '#818cf8',
+    letterSpacing: 0.3,
   },
 });
 
