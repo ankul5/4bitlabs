@@ -11,6 +11,7 @@ import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS, RADIUS, SHADOWS } from '../../config/theme';
 import { getStudents, getCourses, getEnrolledStudents, markStudentAttendance } from '../../services/adminService';
 import StitchHeader from '../../components/StitchHeader';
+import { useSocket } from '../../hooks/useSocket';
 
 const StudentManagementScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -45,6 +46,20 @@ const StudentManagementScreen = ({ navigation }) => {
       if (selectedCourse) fetchEnrolledStudents(selectedCourse);
     }, [fetchData, selectedCourse])
   );
+
+  useSocket('student:registered', (data) => {
+    if (data && data.student) {
+      const newStudent = {
+        id: data.student.id,
+        name: data.student.name,
+        email: data.student.email,
+        school_name: data.student.schoolName || 'A School',
+        created_at: data.student.createdAt || new Date(),
+      };
+      setAllStudents(prev => [newStudent, ...prev]);
+    }
+  });
+
 
   const fetchEnrolledStudents = async (courseId) => {
     try {

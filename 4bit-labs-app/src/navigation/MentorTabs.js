@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform, Animated } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SHADOWS, RADIUS } from '../config/theme';
 import { useTheme } from '../context/ThemeContext';
-
 
 import MentorDashboardScreen from '../screens/admin/MentorDashboardScreen';
 import ContentManagementScreen from '../screens/admin/ContentManagementScreen';
@@ -24,7 +23,7 @@ const TabIcon = ({ label, icon, focused }) => {
     ]}>
       <MaterialIcons
         name={icon}
-        size={22}
+        size={24}
         color={focused ? C.primary : C.onSurfaceVariant}
       />
       <Text
@@ -53,20 +52,24 @@ const MentorTabs = () => {
         tabBarShowLabel: false,
         tabBarStyle: {
           position: 'absolute',
-          bottom: Platform.OS === 'ios' ? insets.bottom : 16,
-          left: 16,
-          right: 16,
-          height: 68,
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 72 + (Platform.OS === 'ios' ? insets.bottom : 0),
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom : 8,
+          paddingTop: 8,
           backgroundColor: C.surfaceContainerLowest || C.tabBarBg,
-          borderRadius: 20,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
           borderTopWidth: 0,
           borderWidth: 1,
           borderColor: C.outlineVariant || 'rgba(255,255,255,0.08)',
+          borderBottomWidth: 0,
           ...SHADOWS.lg,
           elevation: 12,
         },
         tabBarItemStyle: {
-          paddingVertical: 8,
+          paddingVertical: 4,
         },
       }}
     >
@@ -75,7 +78,7 @@ const MentorTabs = () => {
         component={MentorDashboardScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="Dashboard" icon="dashboard" focused={focused} />
+            <TabIcon label="Home" icon="home" focused={focused} />
           ),
         }}
       />
@@ -84,7 +87,7 @@ const MentorTabs = () => {
         component={ContentManagementScreen}
         options={{
           tabBarIcon: ({ focused }) => (
-            <TabIcon label="Content" icon="library-books" focused={focused} />
+            <TabIcon label="Content" icon="add-circle" focused={focused} />
           ),
         }}
       />
@@ -114,10 +117,10 @@ const tabStyles = StyleSheet.create({
   tabItem: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 14,
-    gap: 3,
+    borderRadius: 16,
+    gap: 4,
     minWidth: 64,
   },
   tabLabel: {

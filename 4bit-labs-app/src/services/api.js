@@ -10,7 +10,7 @@ import { Platform } from 'react-native';
  *
  * ⚠️ UPDATE THIS if your WiFi IP changes (run `ipconfig` to find it)
  */
-const LOCAL_IP = '172.28.116.17'; // ← Your machine's current WiFi IP
+const LOCAL_IP = '10.18.152.17'; // ← Your machine's current WiFi IP
 
 const getBaseUrl = () => {
   if (Platform.OS === 'web') return 'http://localhost:5000/api/v1';

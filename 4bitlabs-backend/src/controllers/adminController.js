@@ -117,8 +117,49 @@ const getSchoolStats = async (req, res, next) => {
   }
 };
 
+// ─── GET /api/v1/admin/dashboard-stats ───────────────────────────────────────
+const getDashboardStats = async (req, res, next) => {
+  try {
+    // Run all count queries in parallel for performance
+    const [studentsRes, coursesRes, schoolsRes, quizzesRes, recentRes] = await Promise.all([
+      pool.query(`SELECT COUNT(*) as count FROM users WHERE role = 'student'`),
+      pool.query(`SELECT COUNT(*) as count FROM courses WHERE is_published = true`),
+      pool.query(`SELECT COUNT(*) as count FROM schools WHERE is_active = true`),
+      pool.query(`SELECT COUNT(*) as count FROM quizzes WHERE status = 'published'`),
+      pool.query(
+        `SELECT u.id, u.name, u.email, u.avatar, u.created_at, u.school_id,
+                s.name as school_name, s.code as school_code
+         FROM users u
+         LEFT JOIN schools s ON u.school_id = s.id
+         WHERE u.role = 'student'
+         ORDER BY u.created_at DESC
+         LIMIT 5`
+      ),
+    ]);
+
+    res.json(successResponse('Dashboard stats fetched.', {
+      totalStudents: parseInt(studentsRes.rows[0]?.count || 0),
+      totalCourses: parseInt(coursesRes.rows[0]?.count || 0),
+      totalSchools: parseInt(schoolsRes.rows[0]?.count || 0),
+      totalQuizzes: parseInt(quizzesRes.rows[0]?.count || 0),
+      recentStudents: recentRes.rows.map(r => ({
+        id: r.id,
+        name: r.name,
+        email: r.email,
+        avatar: r.avatar,
+        created_at: r.created_at,
+        school_name: r.school_name || 'No School',
+        school_code: r.school_code || '',
+      })),
+    }));
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   manuallyUpdatePoints,
   overrideAttendance,
   getSchoolStats,
+  getDashboardStats,
 };

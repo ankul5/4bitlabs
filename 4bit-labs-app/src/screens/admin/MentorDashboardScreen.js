@@ -32,23 +32,20 @@ const MentorDashboardScreen = ({ navigation }) => {
 
   const fetchData = useCallback(async () => {
     try {
-      const data = await getDashboardStats(user?.school_id);
+      const data = await getDashboardStats();
       setStats({
         studentsCount: (data.totalStudents || 0).toLocaleString(),
-        coursesCount: String(data.courses?.length || 0),
-        quizzesCount: String(data.quizzes?.length || 0),
-        schoolsCount: String(data.schools?.length || 0),
+        coursesCount: String(data.totalCourses || 0),
+        quizzesCount: String(data.totalQuizzes || 0),
+        schoolsCount: String(data.totalSchools || 0),
       });
-      // Get the 5 most recent students for activity feed
-      const students = data.students || [];
-      const sorted = [...students].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-      setRecentStudents(sorted.slice(0, 5));
+      setRecentStudents(data.recentStudents || []);
     } catch (e) {
       console.warn('Dashboard fetch error:', e.message);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -73,7 +70,6 @@ const MentorDashboardScreen = ({ navigation }) => {
       const newStudent = {
         ...data.student,
         created_at: data.student.createdAt || new Date(),
-        // The backend resolver should provide school name, but default if not available
         school_name: data.student.schoolName || 'A School',
       };
       
@@ -90,6 +86,26 @@ const MentorDashboardScreen = ({ navigation }) => {
         return updated.slice(0, 5);
       });
     }
+  });
+
+  useSocket('school:created', (school) => {
+    setStats(prev => {
+      let currentCount = parseInt(prev.schoolsCount.replace(/,/g, ''), 10) || 0;
+      return {
+        ...prev,
+        schoolsCount: String(currentCount + 1)
+      };
+    });
+  });
+
+  useSocket('course:created', (course) => {
+    setStats(prev => {
+      let currentCount = parseInt(prev.coursesCount.replace(/,/g, ''), 10) || 0;
+      return {
+        ...prev,
+        coursesCount: String(currentCount + 1)
+      };
+    });
   });
 
   const onRefresh = async () => {

@@ -5,7 +5,7 @@ import { useAuth } from './AuthContext';
 const SocketContext = createContext(null);
 
 // Replace with your backend URL when deploying. Use local IP for testing on physical device.
-const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://10.0.2.2:5000';
+const SOCKET_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://10.18.152.17:5000';
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);

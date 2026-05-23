@@ -1,6 +1,7 @@
 const admin = require('../config/firebase-admin');
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
+const { pool } = require('../config/database');
 const User = require('../models/User');
 const School = require('../models/School');
 const { successResponse, errorResponse } = require('../utils/responseHelper');
