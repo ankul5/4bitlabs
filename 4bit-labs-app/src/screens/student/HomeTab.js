@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
 import { useAuth } from '../../context/AuthContext';
 import { getContent, getAnnouncements } from '../../services/adminService';
+import StudentHeader from '../../components/StudentHeader';
 
 const CountCard = ({ icon, label, count, color }) => (
   <View style={styles.countCard}>
@@ -18,7 +19,7 @@ const CountCard = ({ icon, label, count, color }) => (
 
 const HomeTab = () => {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({ videos: 0, code: 0, connections: 0, announcements: 0 });
 
@@ -51,10 +52,11 @@ const HomeTab = () => {
   }, [user]);
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]} contentContainerStyle={styles.scroll}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={{ flex: 1 }}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StudentHeader title="Home" />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Welcome Card */}
+        <View style={styles.welcomeCard}>
           <Text style={styles.welcomeTag}>WELCOME BACK</Text>
           <Text style={styles.welcomeName}>{user?.full_name || 'Student'}</Text>
           <View style={styles.badgeRow}>
@@ -66,7 +68,7 @@ const HomeTab = () => {
               <MaterialIcons
                 name={isVerified ? 'verified' : 'hourglass-empty'}
                 size={13}
-                color={isVerified ? '#fff' : '#fff'}
+                color="#fff"
               />
               <Text style={styles.verifyBadgeText}>
                 {isVerified ? 'Verified' : 'Unverified'}
@@ -74,54 +76,51 @@ const HomeTab = () => {
             </View>
           </View>
         </View>
-        <View style={styles.logoutBtn}>
-          <MaterialIcons name="logout" size={22} color={COLORS.error} onPress={logout} />
-        </View>
-      </View>
 
-      {loading ? (
-        <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 60 }} />
-      ) : (
-        <>
-          <Text style={styles.sectionTitle}>Your Resources</Text>
-          <View style={styles.grid}>
-            <CountCard icon="play-circle-outline" label="Videos" count={counts.videos} color="#e74c3c" />
-            <CountCard icon="code" label="Code Files" count={counts.code} color="#2ecc71" />
-            <CountCard icon="hub" label="Connections" count={counts.connections} color="#3498db" />
-            <CountCard icon="campaign" label="Announcements" count={counts.announcements} color="#f39c12" />
+        {loading ? (
+          <ActivityIndicator size="large" color={COLORS.primary} style={{ marginTop: 60 }} />
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>Your Resources</Text>
+            <View style={styles.grid}>
+              <CountCard icon="play-circle-outline" label="Videos" count={counts.videos} color="#e74c3c" />
+              <CountCard icon="code" label="Code Files" count={counts.code} color="#2ecc71" />
+              <CountCard icon="hub" label="Connections" count={counts.connections} color="#3498db" />
+              <CountCard icon="campaign" label="Announcements" count={counts.announcements} color="#f39c12" />
+            </View>
+          </>
+        )}
+
+        {/* Verification Status Footer */}
+        <View style={[styles.statusFooter, isVerified ? styles.statusFooterVerified : styles.statusFooterPending]}>
+          <View style={styles.statusFooterIcon}>
+            <MaterialIcons
+              name={isVerified ? 'verified' : 'hourglass-empty'}
+              size={28}
+              color={isVerified ? '#2ecc71' : '#f39c12'}
+            />
           </View>
-        </>
-      )}
-
-      {/* Verification Status Footer */}
-      <View style={[styles.statusFooter, isVerified ? styles.statusFooterVerified : styles.statusFooterPending]}>
-        <View style={styles.statusFooterIcon}>
-          <MaterialIcons
-            name={isVerified ? 'verified' : 'hourglass-empty'}
-            size={28}
-            color={isVerified ? '#2ecc71' : '#f39c12'}
-          />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.statusFooterLabel}>VERIFICATION STATUS</Text>
+            <Text style={[styles.statusFooterValue, { color: isVerified ? '#2ecc71' : '#f39c12' }]}>
+              {isVerified ? 'Verified Student' : 'Pending Verification'}
+            </Text>
+            <Text style={styles.statusFooterHint}>
+              {isVerified
+                ? 'Your account has been approved by an administrator.'
+                : 'Your account is awaiting approval from an administrator.'}
+            </Text>
+          </View>
         </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.statusFooterLabel}>VERIFICATION STATUS</Text>
-          <Text style={[styles.statusFooterValue, { color: isVerified ? '#2ecc71' : '#f39c12' }]}>
-            {isVerified ? 'Verified Student' : 'Pending Verification'}
-          </Text>
-          <Text style={styles.statusFooterHint}>
-            {isVerified
-              ? 'Your account has been approved by an administrator.'
-              : 'Your account is awaiting approval from an administrator.'}
-          </Text>
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.surface },
-  scroll: { paddingHorizontal: SPACING.xl, paddingBottom: 100 },
-  header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginTop: SPACING.lg, marginBottom: SPACING['2xl'] },
+  container: { flex: 1, backgroundColor: COLORS.surface, paddingHorizontal: SPACING.xl },
+  scroll: { paddingBottom: 100 },
+  welcomeCard: { marginTop: SPACING.md, marginBottom: SPACING.xl },
   welcomeTag: { fontSize: 10, fontWeight: '700', letterSpacing: 3, color: COLORS.secondary, marginBottom: 4 },
   welcomeName: { fontSize: 28, fontWeight: '800', color: COLORS.onSurface, letterSpacing: -1 },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, flexWrap: 'wrap' },
@@ -131,7 +130,6 @@ const styles = StyleSheet.create({
   verifyBadgeGreen: { backgroundColor: '#2ecc71' },
   verifyBadgeOrange: { backgroundColor: '#f39c12' },
   verifyBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
-  logoutBtn: { padding: 10, backgroundColor: COLORS.errorContainer, borderRadius: RADIUS.full },
   sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.onSurface, marginBottom: SPACING.md, letterSpacing: -0.5 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   countCard: { width: '47%', backgroundColor: COLORS.surfaceContainerLowest, borderRadius: RADIUS.xl, padding: SPACING.lg, ...SHADOWS.sm },

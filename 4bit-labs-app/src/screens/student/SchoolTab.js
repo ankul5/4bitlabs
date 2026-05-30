@@ -8,6 +8,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
 import { useAuth } from '../../context/AuthContext';
 import { getContent, getAnnouncements } from '../../services/adminService';
+import StudentHeader from '../../components/StudentHeader';
 
 const SchoolTab = () => {
   const insets = useSafeAreaInsets();
@@ -40,7 +41,7 @@ const SchoolTab = () => {
       setFolderItems(res.content || []);
     } catch (e) { console.warn(e); }
     finally { setFolderLoading(false); }
-  };
+  }, [schoolId]);
 
   const handleItemPress = (item) => {
     if (activeFolder === 'video') {
@@ -63,44 +64,45 @@ const SchoolTab = () => {
   ];
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]} contentContainerStyle={styles.scroll}>
-      <Text style={styles.screenTitle}>{user?.school_name || 'My School'}</Text>
-
-      {/* Announcements */}
-      <Text style={styles.sectionTitle}>Announcements</Text>
-      {loading ? (
-        <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 20 }} />
-      ) : announcements.length === 0 ? (
-        <View style={styles.emptyCard}>
-          <MaterialIcons name="campaign" size={28} color={COLORS.onSurfaceVariant} />
-          <Text style={styles.emptyText}>No announcements yet</Text>
-        </View>
-      ) : (
-        announcements.map((a) => (
-          <View key={a.id} style={styles.annCard}>
-            <View style={styles.annHeader}>
-              <MaterialIcons name="campaign" size={18} color={COLORS.primary} />
-              <Text style={styles.annTitle}>{a.title}</Text>
-            </View>
-            <Text style={styles.annMessage}>{a.message}</Text>
-            <Text style={styles.annDate}>{formatDate(a.created_at)}</Text>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StudentHeader title="My School" />
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Announcements */}
+        <Text style={styles.sectionTitle}>Announcements</Text>
+        {loading ? (
+          <ActivityIndicator color={COLORS.primary} style={{ marginVertical: 20 }} />
+        ) : announcements.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <MaterialIcons name="campaign" size={28} color={COLORS.onSurfaceVariant} />
+            <Text style={styles.emptyText}>No announcements yet</Text>
           </View>
-        ))
-      )}
-
-      {/* Materials */}
-      <Text style={[styles.sectionTitle, { marginTop: SPACING['2xl'] }]}>Materials</Text>
-      <View style={styles.folderGrid}>
-        {FOLDERS.map((f) => (
-          <TouchableOpacity key={f.type} style={styles.folderCard} onPress={() => openFolder(f.type)} activeOpacity={0.8}>
-            <View style={[styles.folderIcon, { backgroundColor: f.color + '20' }]}>
-              <MaterialIcons name={f.icon} size={28} color={f.color} />
+        ) : (
+          announcements.map((a) => (
+            <View key={a.id} style={styles.annCard}>
+              <View style={styles.annHeader}>
+                <MaterialIcons name="campaign" size={18} color={COLORS.primary} />
+                <Text style={styles.annTitle}>{a.title}</Text>
+              </View>
+              <Text style={styles.annMessage}>{a.message}</Text>
+              <Text style={styles.annDate}>{formatDate(a.created_at)}</Text>
             </View>
-            <Text style={styles.folderLabel}>{f.label}</Text>
-            <MaterialIcons name="chevron-right" size={20} color={COLORS.onSurfaceVariant} />
-          </TouchableOpacity>
-        ))}
-      </View>
+          ))
+        )}
+
+        {/* Materials */}
+        <Text style={[styles.sectionTitle, { marginTop: SPACING['2xl'] }]}>Materials</Text>
+        <View style={styles.folderGrid}>
+          {FOLDERS.map((f) => (
+            <TouchableOpacity key={f.type} style={styles.folderCard} onPress={() => openFolder(f.type)} activeOpacity={0.8}>
+              <View style={[styles.folderIcon, { backgroundColor: f.color + '20' }]}>
+                <MaterialIcons name={f.icon} size={28} color={f.color} />
+              </View>
+              <Text style={styles.folderLabel}>{f.label}</Text>
+              <MaterialIcons name="chevron-right" size={20} color={COLORS.onSurfaceVariant} />
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
 
       {/* Folder Items Modal */}
       <Modal visible={activeFolder !== null} animationType="slide" transparent>
@@ -162,15 +164,14 @@ const SchoolTab = () => {
           </View>
         </View>
       </Modal>
-    </ScrollView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.surface },
-  scroll: { paddingHorizontal: SPACING.xl, paddingBottom: 100 },
-  screenTitle: { fontSize: 28, fontWeight: '800', color: COLORS.onSurface, letterSpacing: -1, marginTop: SPACING.lg, marginBottom: SPACING.xl },
-  sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.onSurface, marginBottom: SPACING.md, letterSpacing: -0.5 },
+  container: { flex: 1, backgroundColor: COLORS.surface, paddingHorizontal: SPACING.xl },
+  scroll: { paddingBottom: 100 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: COLORS.onSurface, marginBottom: SPACING.md, letterSpacing: -0.5, marginTop: SPACING.md },
   // Announcements
   emptyCard: { alignItems: 'center', padding: SPACING['2xl'], backgroundColor: COLORS.surfaceContainerLowest, borderRadius: RADIUS.xl, ...SHADOWS.sm },
   emptyText: { color: COLORS.onSurfaceVariant, marginTop: 8, fontSize: 14 },
