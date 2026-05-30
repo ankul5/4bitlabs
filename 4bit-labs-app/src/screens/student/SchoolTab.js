@@ -41,7 +41,7 @@ const SchoolTab = () => {
       setFolderItems(res.content || []);
     } catch (e) { console.warn(e); }
     finally { setFolderLoading(false); }
-  }, [schoolId]);
+  };
 
   const handleItemPress = (item) => {
     if (activeFolder === 'video') {
