@@ -1,8 +1,38 @@
 const { pool } = require('../config/database');
 
+const cleanupAnnouncements = async (schoolId) => {
+  try {
+    // 1. Delete announcements older than 3 days
+    await pool.query("DELETE FROM announcements WHERE created_at < NOW() - INTERVAL '3 days'");
+
+    // 2. Keep only the 10 most recent announcements per school
+    if (schoolId) {
+      await pool.query(
+        `DELETE FROM announcements 
+         WHERE school_id = $1 
+           AND id NOT IN (
+             SELECT id FROM (
+               SELECT id FROM announcements 
+               WHERE school_id = $1 
+               ORDER BY created_at DESC 
+               LIMIT 10
+             ) tmp
+           )`,
+        [schoolId]
+      );
+    }
+  } catch (error) {
+    console.error('Failed to cleanup announcements:', error.message);
+  }
+};
+
 const getAnnouncements = async (req, res, next) => {
   try {
     const { schoolId } = req.query;
+    if (schoolId) {
+      await cleanupAnnouncements(schoolId);
+    }
+
     let query = 'SELECT * FROM announcements';
     const params = [];
 
@@ -30,6 +60,10 @@ const createAnnouncement = async (req, res, next) => {
       'INSERT INTO announcements (school_id, title, message) VALUES ($1, $2, $3) RETURNING *',
       [school_id, title, message]
     );
+
+    // Run cleanup
+    await cleanupAnnouncements(school_id);
+
     res.status(201).json({ success: true, message: 'Announcement created.', announcement: rows[0] });
   } catch (error) {
     next(error);
