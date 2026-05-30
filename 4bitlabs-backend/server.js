@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -9,50 +8,23 @@ const rateLimit = require('express-rate-limit');
 
 const { connectDB } = require('./src/config/database');
 const { errorHandler, notFound } = require('./src/middleware/errorMiddleware');
-const { registerSocketHandlers } = require('./src/sockets');
 
 // ─── Route Imports ─────────────────────────────────────────────────────────────
 const authRoutes = require('./src/routes/auth.routes');
 const schoolRoutes = require('./src/routes/school.routes');
-const courseRoutes = require('./src/routes/course.routes');
-const quizRoutes = require('./src/routes/quiz.routes');
-const leaderboardRoutes = require('./src/routes/leaderboard.routes');
-const mentorRoutes = require('./src/routes/mentor.routes');
-const paymentRoutes = require('./src/routes/payment.routes');
-const attendanceRoutes = require('./src/routes/attendance.routes');
-const uploadRoutes = require('./src/routes/upload.routes');
-const enrollmentRoutes = require('./src/routes/enrollment.routes');
+const studentRoutes = require('./src/routes/student.routes');
+const contentRoutes = require('./src/routes/content.routes');
 const announcementRoutes = require('./src/routes/announcement.routes');
-const userRoutes = require('./src/routes/user.routes');
-const aiRoutes = require('./src/routes/ai.routes');
-const chatRoutes = require('./src/routes/chat.routes');
-const labRoutes = require('./src/routes/lab.routes');
-const adminRoutes = require('./src/routes/admin.routes');
 
 // ─── App Setup ─────────────────────────────────────────────────────────────────
 const app = express();
 const server = http.createServer(app);
 
-// ─── Socket.IO Setup ──────────────────────────────────────────────────────────
-const io = new Server(server, {
-  cors: {
-    origin: process.env.CLIENT_URL || '*',
-    methods: ['GET', 'POST'],
-  },
-});
-// Attach io to each request so controllers can emit events
-app.use((req, _res, next) => {
-  req.io = io;
-  next();
-});
-registerSocketHandlers(io);
-
 // ─── Connect Database ─────────────────────────────────────────────────────────
 connectDB();
 
 // ─── Global Middleware ────────────────────────────────────────────────────────
-app.use('/uploads', express.static('public/uploads'));
-app.use(helmet({ crossOriginResourcePolicy: false })); // allow images/videos to be requested from frontend
+app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors({
   origin: process.env.CLIENT_URL || '*',
   credentials: true,
@@ -71,7 +43,7 @@ const globalLimiter = rateLimit({
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 10,
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 100,
   message: { success: false, message: 'Too many auth requests, please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -82,20 +54,9 @@ app.use('/api/v1/auth', authLimiter);
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/schools', schoolRoutes);
-app.use('/api/v1/courses', courseRoutes);
-app.use('/api/v1/quizzes', quizRoutes);
-app.use('/api/v1/leaderboard', leaderboardRoutes);
-app.use('/api/v1/mentors', mentorRoutes);
-app.use('/api/v1/payments', paymentRoutes);
-app.use('/api/v1/attendance', attendanceRoutes);
-app.use('/api/v1/upload', uploadRoutes);
-app.use('/api/v1/enrollments', enrollmentRoutes);
+app.use('/api/v1/students', studentRoutes);
+app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/announcements', announcementRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/ai', aiRoutes);
-app.use('/api/v1/chat', chatRoutes);
-app.use('/api/v1/labs', labRoutes);
-app.use('/api/v1/admin', adminRoutes);
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
@@ -114,4 +75,6 @@ server.listen(PORT, () => {
   console.log(`🔗 Health check: http://localhost:${PORT}/health\n`);
 });
 
-module.exports = { app, server, io };
+module.exports = { app, server };
+
+

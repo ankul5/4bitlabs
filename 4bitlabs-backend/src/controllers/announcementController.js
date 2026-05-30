@@ -1,83 +1,73 @@
-const Announcement = require('../models/Announcement');
-const notificationService = require('../services/notificationService');
-const { successResponse, errorResponse } = require('../utils/responseHelper');
+const { pool } = require('../config/database');
 
-// ─── POST /api/v1/announcements ──────────────────────────────────────────────
-const createAnnouncement = async (req, res, next) => {
-  try {
-    const userId = req.user._id || req.user.id;
-    const schoolId = req.body.schoolId || req.user.schoolId?._id || req.user.schoolId;
-    const announcement = await Announcement.create({
-      ...req.body, created_by: userId, school_id: schoolId,
-    });
-    if (schoolId) {
-      notificationService.notifySchool(schoolId, announcement.title, announcement.body.substring(0, 100)).catch(() => {});
-    }
-
-    // Real-time: notify students of new announcement
-    if (req.io) {
-      if (schoolId) {
-        req.io.to(`school_${schoolId}`).emit('announcement:created', announcement);
-      } else {
-        req.io.to('global').emit('announcement:created', announcement);
-      }
-    }
-
-    res.status(201).json(successResponse('Announcement created.', { announcement }));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ─── GET /api/v1/announcements ───────────────────────────────────────────────
 const getAnnouncements = async (req, res, next) => {
   try {
-    const filter = { is_active: true };
-    const schoolId = req.user.schoolId?._id || req.user.schoolId;
-    if (req.user.role === 'student' && schoolId) {
-      filter.school_id = schoolId;
-    } else if (req.query.schoolId) {
-      filter.school_id = req.query.schoolId;
+    const { schoolId } = req.query;
+    let query = 'SELECT * FROM announcements';
+    const params = [];
+
+    if (schoolId) {
+      params.push(schoolId);
+      query += ` WHERE school_id = $${params.length}`;
     }
-    if (req.query.limit) filter.limit = parseInt(req.query.limit);
-    const announcements = await Announcement.find(filter);
-    res.json(successResponse('Announcements fetched.', { announcements, total: announcements.length }));
+
+    query += ' ORDER BY created_at DESC';
+    const { rows } = await pool.query(query, params);
+    res.json({ success: true, announcements: rows || [] });
   } catch (error) {
     next(error);
   }
 };
 
-// ─── GET /api/v1/announcements/:id ───────────────────────────────────────────
-const getAnnouncement = async (req, res, next) => {
+const createAnnouncement = async (req, res, next) => {
   try {
-    const announcement = await Announcement.findById(req.params.id);
-    if (!announcement) return res.status(404).json(errorResponse('Announcement not found.'));
-    res.json(successResponse('Announcement fetched.', { announcement }));
+    const { school_id, title, message } = req.body;
+    if (!school_id || !title || !message) {
+      return res.status(400).json({ success: false, message: 'All fields are required.' });
+    }
+
+    const { rows } = await pool.query(
+      'INSERT INTO announcements (school_id, title, message) VALUES ($1, $2, $3) RETURNING *',
+      [school_id, title, message]
+    );
+    res.status(201).json({ success: true, message: 'Announcement created.', announcement: rows[0] });
   } catch (error) {
     next(error);
   }
 };
 
-// ─── PUT /api/v1/announcements/:id ───────────────────────────────────────────
 const updateAnnouncement = async (req, res, next) => {
   try {
-    const announcement = await Announcement.findByIdAndUpdate(req.params.id, req.body);
-    if (!announcement) return res.status(404).json(errorResponse('Announcement not found.'));
-    res.json(successResponse('Announcement updated.', { announcement }));
+    const { id } = req.params;
+    const { title, message } = req.body;
+
+    const checkExist = await pool.query('SELECT id FROM announcements WHERE id = $1', [id]);
+    if (!checkExist.rows || checkExist.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Announcement not found.' });
+    }
+
+    await pool.query(
+      'UPDATE announcements SET title = $1, message = $2, updated_at = NOW() WHERE id = $3',
+      [title, message, id]
+    );
+    res.json({ success: true, message: 'Announcement updated.', announcement: { id, title, message } });
   } catch (error) {
     next(error);
   }
 };
 
-// ─── DELETE /api/v1/announcements/:id ────────────────────────────────────────
 const deleteAnnouncement = async (req, res, next) => {
   try {
-    const announcement = await Announcement.findByIdAndDelete(req.params.id);
-    if (!announcement) return res.status(404).json(errorResponse('Announcement not found.'));
-    res.json(successResponse('Announcement deleted.'));
+    const { id } = req.params;
+    const checkExist = await pool.query('SELECT id FROM announcements WHERE id = $1', [id]);
+    if (!checkExist.rows || checkExist.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Announcement not found.' });
+    }
+    await pool.query('DELETE FROM announcements WHERE id = $1', [id]);
+    res.json({ success: true, message: 'Announcement deleted.' });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { createAnnouncement, getAnnouncements, getAnnouncement, updateAnnouncement, deleteAnnouncement };
+module.exports = { getAnnouncements, createAnnouncement, updateAnnouncement, deleteAnnouncement };

@@ -1,14 +1,7 @@
 import React, { useState } from 'react';
-import { MaterialIcons } from '@expo/vector-icons';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
+  View, Text, StyleSheet, KeyboardAvoidingView, Platform,
+  ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,21 +11,24 @@ import { useAuth } from '../../context/AuthContext';
 
 const LoginScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { login, isLoading } = useAuth();
-  const [email, setEmail] = useState('');
+  const { login } = useAuth();
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('Please fill in all fields');
+    if (!username.trim() || !password.trim()) {
+      setError('Please enter both username and password.');
       return;
     }
     setError('');
-    const result = await login(email, password);
+    setLoading(true);
+    const result = await login(username.trim(), password);
+    setLoading(false);
     if (!result.success) {
-      setError(result.error || 'Login failed');
+      setError(result.error || 'Login failed.');
     }
   };
 
@@ -46,36 +42,36 @@ const LoginScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Brand Logo */}
-        <View style={styles.brandSection}>
-          <Text style={styles.brandText}>4BIT LABS</Text>
-          <View style={styles.brandUnderline} />
+        {/* Hero */}
+        <View style={styles.heroSection}>
+          <View style={styles.tagContainer}>
+            <View style={styles.tagLine} />
+            <Text style={styles.tagText}>WELCOME BACK</Text>
+          </View>
+          <Text style={styles.heroTitle}>
+            Sign <Text style={styles.heroItalic}>in</Text> to continue.
+          </Text>
+          <Text style={styles.heroSubtitle}>
+            Access your 4Bit Labs dashboard and resources.
+          </Text>
         </View>
 
         {/* Login Card */}
         <View style={styles.card}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.welcomeText}>Welcome Back</Text>
-            <Text style={styles.subtitleText}>Continue your learning journey</Text>
-          </View>
-
           {error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
 
-          {/* Email Input */}
           <InputField
-            label="Email or Phone"
-            value={email}
-            onChangeText={setEmail}
-            placeholder="Enter your email or phone"
-            keyboardType="email-address"
+            label="Full Name / Username"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Enter full name or admin email"
             icon="person"
           />
 
-          {/* Password Input */}
           <InputField
             label="Password"
             value={password}
@@ -83,14 +79,14 @@ const LoginScreen = ({ navigation }) => {
             placeholder="••••••••"
             secureTextEntry={!showPassword}
             icon="lock"
-            rightIcon={showPassword ? 'visibility-off' : 'visibility'}
+            rightIcon={showPassword ? 'visibility' : 'visibility-off'}
             onRightIconPress={() => setShowPassword(!showPassword)}
           />
 
           {/* Login Button */}
           <TouchableOpacity
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={loading}
             activeOpacity={0.9}
             style={styles.loginButtonWrapper}
           >
@@ -100,54 +96,34 @@ const LoginScreen = ({ navigation }) => {
               end={{ x: 1, y: 1 }}
               style={styles.loginButton}
             >
-              {isLoading ? (
+              {loading ? (
                 <ActivityIndicator color={COLORS.white} />
               ) : (
-                <Text style={styles.loginButtonText}>Login to Dashboard</Text>
+                <View style={styles.loginButtonContent}>
+                  <Text style={styles.loginButtonText}>Sign In</Text>
+                  <Text style={styles.loginButtonArrow}>→</Text>
+                </View>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.divider} />
-
-          {/* Google Sign In */}
-          <TouchableOpacity style={styles.googleButton} activeOpacity={0.8}>
-            <Text style={styles.googleIcon}>G</Text>
-            <Text style={styles.googleText}>Sign in with Google</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Bottom Links */}
-        <View style={styles.bottomLinks}>
-          <TouchableOpacity activeOpacity={0.7}>
-            <Text style={styles.forgotText}>Forgot Password?</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.registerRow}
-            onPress={() => navigation.navigate('Register')}
-            activeOpacity={0.7}
-            hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
-          >
-            <Text style={styles.registerLabel}>New to 4Bit Labs? </Text>
-            <Text style={styles.registerLink}>Register →</Text>
-          </TouchableOpacity>
+          {/* Register Link */}
+          <View style={styles.registerRow}>
+            <Text style={styles.registerLabel}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+              <Text style={styles.registerLink}>Register</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Footer */}
-        <View style={styles.mentorHint}>
-          <MaterialIcons name="admin-panel-settings" size={16} color="#6366f1" />
-          <Text style={styles.mentorHintText}>Mentors & Teachers: Login with your admin credentials</Text>
-        </View>
-
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>4BIT LABS © 2026</Text>
+        <View style={styles.footerBadges}>
+          <View style={styles.certBadge}>
+            <Text style={styles.certIcon}>✓</Text>
+            <Text style={styles.certText}>4BIT LABS</Text>
+          </View>
         </View>
       </ScrollView>
-
-      {/* Decorative blurs — non-interactive */}
-      <View style={styles.decorBlobLeft} pointerEvents="none" />
-      <View style={styles.decorBlobRight} pointerEvents="none" />
     </KeyboardAvoidingView>
   );
 };
@@ -159,47 +135,52 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: SPACING['2xl'],
-    paddingBottom: SPACING['3xl'],
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING['5xl'],
   },
-  brandSection: {
+  heroSection: {
+    marginBottom: SPACING['2xl'],
+  },
+  tagContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 32,
-  },
-  brandText: {
-    fontSize: 36,
-    fontWeight: '900',
-    color: COLORS.primary,
-    letterSpacing: -2,
+    gap: 8,
     marginBottom: 8,
   },
-  brandUnderline: {
-    width: 48,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.primary,
+  tagLine: {
+    width: 32,
+    height: 1,
+    backgroundColor: 'rgba(55, 85, 195, 0.3)',
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 3,
+    color: COLORS.secondary,
+    textTransform: 'uppercase',
+  },
+  heroTitle: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: COLORS.onSurface,
+    letterSpacing: -1.5,
+    lineHeight: 42,
+    marginBottom: 8,
+  },
+  heroItalic: {
+    fontStyle: 'italic',
+    color: COLORS.primary,
+  },
+  heroSubtitle: {
+    fontSize: 14,
+    color: COLORS.onSurfaceVariant,
+    lineHeight: 20,
   },
   card: {
     backgroundColor: COLORS.surfaceContainerLowest,
     borderRadius: RADIUS.xl,
     padding: SPACING['2xl'],
     ...SHADOWS.md,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    marginBottom: SPACING['2xl'],
-  },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: COLORS.onSurface,
-    letterSpacing: -0.5,
-    marginBottom: 4,
-  },
-  subtitleText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: COLORS.onSurfaceVariant,
   },
   errorContainer: {
     backgroundColor: COLORS.errorContainer,
@@ -216,7 +197,7 @@ const styles = StyleSheet.create({
   loginButtonWrapper: {
     borderRadius: RADIUS.full,
     overflow: 'hidden',
-    marginTop: 8,
+    marginTop: SPACING.xl,
   },
   loginButton: {
     paddingVertical: 18,
@@ -225,105 +206,58 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full,
     ...SHADOWS.primaryGlow,
   },
+  loginButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   loginButtonText: {
     color: COLORS.white,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(231, 189, 184, 0.1)',
-    marginVertical: SPACING['2xl'],
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.surfaceContainerLow,
-    paddingVertical: 14,
-    borderRadius: RADIUS.full,
-    gap: 12,
-  },
-  googleIcon: {
+  loginButtonArrow: {
+    color: COLORS.white,
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.onSurface,
-  },
-  googleText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.onSurfaceVariant,
-  },
-  bottomLinks: {
-    alignItems: 'center',
-    marginTop: SPACING['2xl'],
-    gap: 12,
-  },
-  forgotText: {
-    color: COLORS.primary,
-    fontWeight: '700',
-    fontSize: 14,
   },
   registerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.xl,
   },
   registerLabel: {
-    color: COLORS.onSurfaceVariant,
     fontSize: 14,
-    fontWeight: '500',
+    color: COLORS.onSurfaceVariant,
   },
   registerLink: {
-    color: COLORS.primary,
-    fontWeight: '700',
     fontSize: 14,
-  },
-  footer: {
-    alignItems: 'center',
-    marginTop: SPACING['4xl'],
-    opacity: 0.4,
-  },
-  footerText: {
-    fontSize: 9,
     fontWeight: '700',
-    letterSpacing: 3,
-    textTransform: 'uppercase',
-    color: COLORS.onSurfaceVariant,
+    color: COLORS.secondary,
   },
-  decorBlobLeft: {
-    position: 'absolute',
-    bottom: -50,
-    left: -30,
-    width: 200,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: 'rgba(186, 0, 19, 0.03)',
-  },
-  decorBlobRight: {
-    position: 'absolute',
-    bottom: -80,
-    right: -40,
-    width: 250,
-    height: 250,
-    borderRadius: 125,
-    backgroundColor: 'rgba(0, 97, 144, 0.03)',
-  },
-  mentorHint: {
+  footerBadges: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    marginTop: 16,
-    backgroundColor: '#eef2ff',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    marginTop: SPACING['2xl'],
+    paddingHorizontal: 4,
   },
-  mentorHintText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6366f1',
+  certBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  certIcon: {
+    fontSize: 16,
+    color: COLORS.tertiary,
+  },
+  certText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2,
+    color: COLORS.onSurfaceVariant,
   },
 });
 

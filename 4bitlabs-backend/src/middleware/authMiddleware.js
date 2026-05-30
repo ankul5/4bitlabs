@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { pool } = require('../config/database');
 
 /**
  * Protect routes — verifies JWT issued by our backend.
+ * Attaches req.user with { id, role, ... }
  */
 const protect = async (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -15,16 +16,20 @@ const protect = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByUid(decoded.uid);
 
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'User no longer exists.' });
-    }
-    if (!user.isActive) {
-      return res.status(403).json({ success: false, message: 'Account has been deactivated.' });
+    if (decoded.role === 'admin') {
+      req.user = { id: 0, role: 'admin', username: 'admin' };
+    } else {
+      const { rows } = await pool.query(
+        'SELECT id, full_name, username, school_id FROM students WHERE id = $1',
+        [decoded.id]
+      );
+      if (!rows || rows.length === 0) {
+        return res.status(401).json({ success: false, message: 'User no longer exists.' });
+      }
+      req.user = { ...rows[0], role: 'student' };
     }
 
-    req.user = user;
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -34,22 +39,4 @@ const protect = async (req, res, next) => {
   }
 };
 
-/**
- * Optional auth — attaches req.user if token present, but does not block if absent.
- */
-const optionalAuth = async (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) return next();
-
-  try {
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByUid(decoded.uid);
-    if (user) req.user = user;
-  } catch (_err) {
-    // Silently ignore invalid tokens for optional auth
-  }
-  next();
-};
-
-module.exports = { protect, optionalAuth };
+module.exports = { protect };

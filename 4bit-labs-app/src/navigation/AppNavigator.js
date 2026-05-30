@@ -1,43 +1,56 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { COLORS } from '../config/theme';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
-import AuthStack from './AuthStack';
-import MainStack from './MainStack';
-import MentorStack from './MentorStack';
-import { SidebarProvider } from '../context/SidebarContext';
-import SidebarOverlay from '../components/SidebarOverlay';
 
-const ADMIN_ROLES = ['mentor', 'teacher', 'school_admin', 'super_admin'];
+import LoginScreen from '../screens/auth/LoginScreen';
+import RegisterScreen from '../screens/auth/RegisterScreen';
+import AdminStack from './AdminStack';
+import StudentStack from './StudentStack';
+
+const Stack = createNativeStackNavigator();
 
 const AppNavigator = () => {
-  const { user } = useAuth();
-  const { loadTheme, themeVersion } = useTheme();
+  const { user, isLoading } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      loadTheme(user._id || user.id);
-    }
-  }, [user]);
-
-  const isMentor = user && ADMIN_ROLES.includes(user.role);
+  if (isLoading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
 
   return (
-    <NavigationContainer key={`app-nav-${themeVersion}`}>
-      {user ? (
-        isMentor ? (
-          <MentorStack />
+    <NavigationContainer>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!user ? (
+          // Auth screens
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        ) : user.role === 'admin' ? (
+          // Admin stack
+          <Stack.Screen name="AdminRoot" component={AdminStack} />
         ) : (
-          <SidebarProvider>
-            <MainStack />
-            <SidebarOverlay />
-          </SidebarProvider>
-        )
-      ) : (
-        <AuthStack />
-      )}
+          // Student stack
+          <Stack.Screen name="StudentRoot" component={StudentStack} />
+        )}
+      </Stack.Navigator>
     </NavigationContainer>
   );
 };
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+  },
+});
 
 export default AppNavigator;

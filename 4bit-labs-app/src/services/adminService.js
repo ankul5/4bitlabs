@@ -1,182 +1,86 @@
 import api from './api';
 
-// ─── Dashboard Stats ──────────────────────────────────────────────────────────
-export const getDashboardStats = async () => {
-  const res = await api.get('/admin/dashboard-stats');
-  return res.data?.data || {
-    totalStudents: 0,
-    totalCourses: 0,
-    totalSchools: 0,
-    totalQuizzes: 0,
-    recentStudents: [],
-  };
+export const getSchools = async () => {
+  const response = await api.get('/schools');
+  return response.data;
 };
 
-export const getStudents = async (schoolId) => {
-  const res = await api.get('/users', { params: { schoolId, role: 'student' } });
-  return res.data?.users || [];
+export const createSchool = async (name) => {
+  const response = await api.post('/schools', { name });
+  return response.data;
 };
 
-// ─── Attendance ───────────────────────────────────────────────────────────────
-export const markAttendance = async (data) => {
-  const res = await api.post('/attendance', data);
-  return res.data;
+export const deleteSchool = async (id) => {
+  const response = await api.delete(`/schools/${id}`);
+  return response.data;
 };
 
-export const getAttendance = async (params) => {
-  const res = await api.get('/attendance', { params });
-  return res.data?.records || [];
+export const getStudents = async () => {
+  const response = await api.get('/students');
+  return response.data;
 };
 
-export const markStudentAttendance = async (data) => {
-  const res = await api.post('/attendance/mark-student', data);
-  return res.data;
+export const createStudent = async (data) => {
+  const response = await api.post('/students', data);
+  return response.data;
 };
 
-// ─── Enrolled Students per Course ─────────────────────────────────────────────
-export const getEnrolledStudents = async (courseId) => {
-  const res = await api.get(`/enrollments/course/${courseId}`);
-  return res.data?.enrollments || [];
+export const updateStudent = async (id, data) => {
+  const response = await api.put(`/students/${id}`, data);
+  return response.data;
 };
 
-// ─── Quizzes ──────────────────────────────────────────────────────────────────
-export const getQuizzes = async (schoolId) => {
-  const res = await api.get('/quizzes', { params: { schoolId } });
-  return res.data?.quizzes || [];
+export const deleteStudent = async (id) => {
+  const response = await api.delete(`/students/${id}`);
+  return response.data;
 };
 
-export const createQuiz = async (data) => {
-  const res = await api.post('/quizzes', data);
-  return res.data?.quiz;
+export const verifyStudent = async (id) => {
+  const response = await api.patch(`/students/${id}/verify`);
+  return response.data;
 };
 
-export const updateQuiz = async (id, data) => {
-  const res = await api.put(`/quizzes/${id}`, data);
-  return res.data?.quiz;
+export const getContent = async (schoolId, type) => {
+  let url = '/content?';
+  if (schoolId) url += `schoolId=${schoolId}&`;
+  if (type) url += `type=${type}`;
+  const response = await api.get(url);
+  return response.data;
 };
 
-export const deleteQuiz = async (id) => {
-  const res = await api.delete(`/quizzes/${id}`);
-  return res.data;
+export const createContent = async (data) => {
+  const response = await api.post('/content', data);
+  return response.data;
 };
 
-export const addQuestion = async (quizId, data) => {
-  const res = await api.post(`/quizzes/${quizId}/questions`, data);
-  return res.data?.question;
+export const updateContent = async (id, data) => {
+  const response = await api.put(`/content/${id}`, data);
+  return response.data;
 };
 
-// ─── Courses ──────────────────────────────────────────────────────────────────
-export const getCourses = async () => {
-  const res = await api.get('/courses/public');
-  return res.data?.courses || [];
+export const deleteContent = async (id) => {
+  const response = await api.delete(`/content/${id}`);
+  return response.data;
 };
 
-export const createCourse = async (data) => {
-  const res = await api.post('/courses', data);
-  return res.data?.course;
-};
-
-// ─── Lectures ─────────────────────────────────────────────────────────────────
-export const getLectures = async (courseId) => {
-  const res = await api.get(`/courses/${courseId}/lectures`);
-  return res.data?.lectures || [];
-};
-
-export const createLecture = async (courseId, data) => {
-  const res = await api.post(`/courses/${courseId}/lectures`, data);
-  return res.data?.lecture;
-};
-
-export const uploadVideo = async (videoUri) => {
-  const formData = new FormData();
-  const filename = videoUri.split('/').pop() || 'video.mp4';
-  const match = /\.(\w+)$/.exec(filename);
-  const type = match ? `video/${match[1]}` : `video/mp4`;
-  
-  formData.append('file', {
-    uri: videoUri,
-    name: filename,
-    type,
-  });
-
-  const res = await api.post('/upload/video', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-  return res.data;
-};
-
-// ─── Lab Items ────────────────────────────────────────────────────────────────
-export const getLabItems = async (schoolId) => {
-  const res = await api.get('/labs', { params: { schoolId } });
-  return res.data?.items || [];
-};
-
-export const createLabItem = async (data) => {
-  const res = await api.post('/labs', data);
-  return res.data?.item;
-};
-
-export const updateLabItem = async (id, data) => {
-  const res = await api.put(`/labs/${id}`, data);
-  return res.data?.item;
-};
-
-export const deleteLabItem = async (id) => {
-  const res = await api.delete(`/labs/${id}`);
-  return res.data;
-};
-
-// ─── Announcements ────────────────────────────────────────────────────────────
 export const getAnnouncements = async (schoolId) => {
-  const res = await api.get('/announcements', { params: { schoolId } });
-  return res.data?.announcements || [];
+  let url = '/announcements';
+  if (schoolId) url += `?schoolId=${schoolId}`;
+  const response = await api.get(url);
+  return response.data;
 };
 
 export const createAnnouncement = async (data) => {
-  const res = await api.post('/announcements', data);
-  return res.data?.announcement;
+  const response = await api.post('/announcements', data);
+  return response.data;
+};
+
+export const updateAnnouncement = async (id, data) => {
+  const response = await api.put(`/announcements/${id}`, data);
+  return response.data;
 };
 
 export const deleteAnnouncement = async (id) => {
-  const res = await api.delete(`/announcements/${id}`);
-  return res.data;
-};
-
-// ─── Leaderboard ──────────────────────────────────────────────────────────────
-export const getLeaderboard = async (courseId) => {
-  const res = await api.get('/leaderboard', { params: { courseId } });
-  return res.data?.entries || [];
-};
-
-// ─── Profile ──────────────────────────────────────────────────────────────────
-export const updateProfile = async (data) => {
-  const res = await api.put('/auth/me', data);
-  return res.data?.user;
-};
-
-// ─── Schools ──────────────────────────────────────────────────────────────────
-export const getSchools = async () => {
-  const res = await api.get('/schools');
-  return res.data?.schools || [];
-};
-
-export const createSchool = async (data) => {
-  const res = await api.post('/schools', data);
-  return res.data?.school;
-};
-
-export const getSchoolStats = async () => {
-  const res = await api.get('/admin/school-stats');
-  return res.data?.data || null;
-};
-
-// ─── Overrides ────────────────────────────────────────────────────────────────
-export const manuallyUpdatePoints = async (id, data) => {
-  const res = await api.put(`/admin/users/${id}/points`, data);
-  return res.data;
-};
-
-export const overrideAttendanceStatus = async (id, data) => {
-  const res = await api.put(`/admin/attendance/${id}/override`, data);
-  return res.data;
+  const response = await api.delete(`/announcements/${id}`);
+  return response.data;
 };

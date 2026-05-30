@@ -1,80 +1,48 @@
-const School = require('../models/School');
-const Course = require('../models/Course');
-const { successResponse, errorResponse } = require('../utils/responseHelper');
+const { pool } = require('../config/database');
 
-// ─── GET /api/v1/schools ─────────────────────────────────────────────────────
 const getSchools = async (req, res, next) => {
   try {
-    const schools = await School.find({ is_active: true });
-    res.json(successResponse('Schools fetched.', { schools, count: schools.length }));
+    const { rows } = await pool.query('SELECT * FROM schools ORDER BY name ASC');
+    res.json({ success: true, schools: rows || [] });
   } catch (error) {
     next(error);
   }
 };
 
-// ─── GET /api/v1/schools/:id ─────────────────────────────────────────────────
-const getSchool = async (req, res, next) => {
-  try {
-    const school = await School.findById(req.params.id);
-    if (!school) return res.status(404).json(errorResponse('School not found.'));
-    
-    // Fetch courses for this school so registration form dropdown populates correctly
-    const courses = await Course.find({ school_id: school.id, is_published: true });
-    school.courses = courses;
-
-    res.json(successResponse('School fetched.', { school }));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ─── POST /api/v1/schools ────────────────────────────────────────────────────
 const createSchool = async (req, res, next) => {
   try {
-    const userId = req.user._id || req.user.id;
-    const { name, code, address, city, state } = req.body;
-    const school = await School.create({ name, code, address, city, state, admin_id: userId });
-
-    // Real-time: notify all clients of new school (for registration dropdowns)
-    if (req.io) req.io.to('global').emit('school:created', school);
-
-    res.status(201).json(successResponse('School created.', { school }));
-  } catch (error) {
-    next(error);
-  }
-};
-
-// ─── PUT /api/v1/schools/:id ─────────────────────────────────────────────────
-const updateSchool = async (req, res, next) => {
-  try {
-    const school = await School.findByIdAndUpdate(req.params.id, req.body);
-    if (!school) return res.status(404).json(errorResponse('School not found.'));
-
-    // Real-time: notify school members of update
-    if (req.io) {
-      req.io.to(`school_${req.params.id}`).emit('school:updated', school);
-      req.io.to('global').emit('school:updated', school);
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'School name is required.' });
     }
 
-    res.json(successResponse('School updated.', { school }));
+    const existing = await pool.query('SELECT id FROM schools WHERE LOWER(name) = LOWER($1)', [name.trim()]);
+    if (existing.rows && existing.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'School already exists.' });
+    }
+
+    const { rows } = await pool.query(
+      'INSERT INTO schools (name) VALUES ($1) RETURNING *',
+      [name.trim()]
+    );
+    res.status(201).json({ success: true, message: 'School created.', school: rows[0] });
   } catch (error) {
     next(error);
   }
 };
 
-// ─── DELETE /api/v1/schools/:id ──────────────────────────────────────────────
 const deleteSchool = async (req, res, next) => {
   try {
-    const school = await School.findByIdAndDelete(req.params.id);
-    if (!school) return res.status(404).json(errorResponse('School not found.'));
-
-    // Real-time: notify all clients of deletion
-    if (req.io) req.io.to('global').emit('school:deleted', { id: req.params.id });
-
-    res.json(successResponse('School deleted.'));
+    const { id } = req.params;
+    const checkExist = await pool.query('SELECT id FROM schools WHERE id = $1', [id]);
+    if (!checkExist.rows || checkExist.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'School not found.' });
+    }
+    await pool.query('DELETE FROM schools WHERE id = $1', [id]);
+    res.json({ success: true, message: 'School deleted.' });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { getSchools, getSchool, createSchool, updateSchool, deleteSchool };
+module.exports = { getSchools, createSchool, deleteSchool };

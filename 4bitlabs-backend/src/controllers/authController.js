@@ -1,158 +1,130 @@
-const admin = require('../config/firebase-admin');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { validationResult } = require('express-validator');
 const { pool } = require('../config/database');
-const User = require('../models/User');
-const School = require('../models/School');
-const { successResponse, errorResponse } = require('../utils/responseHelper');
 
-// ─── Generate Backend JWT ─────────────────────────────────────────────────────
-const signJWT = (user) =>
-  jwt.sign(
-    { uid: user.uid, role: user.role, _id: user._id || user.id },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
-  );
+const ADMIN_USERNAMES = ['ankul@4bit', 'aman@4bit', 'devraj@4bit', 'lokesh@4bit', 'rohit@4bit'];
+const ADMIN_PASSWORD = '4bitlabs2026';
 
-// ─── POST /api/v1/auth/verify-token ──────────────────────────────────────────
-const verifyToken = async (req, res, next) => {
+/**
+ * POST /api/v1/auth/login
+ * Body: { username, password }
+ */
+const login = async (req, res, next) => {
   try {
-    const { idToken } = req.body;
-    if (!idToken) return res.status(400).json(errorResponse('idToken is required.'));
+    const { username, password } = req.body;
 
-    const decoded = await admin.auth().verifyIdToken(idToken);
-    const user = await User.findByUid(decoded.uid);
-    if (!user) return res.status(404).json(errorResponse('User not registered. Please register first.'));
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: 'Username and password are required.' });
+    }
 
-    const token = signJWT(user);
-    return res.json(successResponse('Login successful.', { token, user }));
+    // Check admin
+    const normalizedUsername = username.trim().toLowerCase();
+    console.log('--- LOGIN ATTEMPT ---');
+    console.log('Username:', username);
+    console.log('Normalized Username:', normalizedUsername);
+    console.log('Is Admin Username Match:', ADMIN_USERNAMES.includes(normalizedUsername));
+    console.log('Is Password Match:', password === ADMIN_PASSWORD);
+    console.log('---------------------');
+
+    if (ADMIN_USERNAMES.includes(normalizedUsername) && password === ADMIN_PASSWORD) {
+      const token = jwt.sign(
+        { id: 0, role: 'admin', username: normalizedUsername },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      );
+      // Construct a nice display name
+      const displayName = username.trim().split('@')[0];
+      const capitalizedDisplayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+      return res.json({
+        success: true,
+        message: 'Admin login successful.',
+        token,
+        user: { id: 0, role: 'admin', username: normalizedUsername, full_name: capitalizedDisplayName },
+      });
+    }
+
+    // Check student
+    const studentUsername = username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const { rows } = await pool.query(
+      'SELECT s.*, sc.name as school_name FROM students s LEFT JOIN schools sc ON s.school_id = sc.id WHERE s.username = $1',
+      [studentUsername]
+    );
+
+    if (!rows || rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid name or password.' });
+    }
+
+    const student = rows[0];
+    const isMatch = await bcrypt.compare(password, student.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid name or password.' });
+    }
+
+    const token = jwt.sign(
+      { id: student.id, role: 'student', school_id: student.school_id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Student login successful.',
+      token,
+      user: {
+        id: student.id,
+        role: 'student',
+        full_name: student.full_name,
+        username: student.username,
+        school_id: student.school_id,
+        school_name: student.school_name,
+        phone: student.phone || '',
+        is_verified: !!student.is_verified,
+      },
+    });
   } catch (error) {
-    if (error.code === 'auth/id-token-expired') {
-      return res.status(401).json(errorResponse('Firebase token expired. Please login again.'));
-    }
-    if (error.code && error.code.startsWith('auth/')) {
-      return res.status(401).json(errorResponse('Invalid Firebase token.'));
-    }
     next(error);
   }
 };
 
-// ─── POST /api/v1/auth/register ───────────────────────────────────────────────
+/**
+ * POST /api/v1/auth/register
+ * Body: { full_name, password, school_id, phone }
+ */
 const register = async (req, res, next) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json(errorResponse('Validation failed.', errors.array()));
+    const { full_name, password, school_id, phone } = req.body;
+
+    if (!full_name || !password || !school_id || !phone) {
+      return res.status(400).json({ success: false, message: 'All fields are required.' });
     }
 
-    const { idToken, name, email, phone, schoolId, customSchoolName, role } = req.body;
-    const decoded = await admin.auth().verifyIdToken(idToken);
+    const username = full_name.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
 
-    const existing = await User.findByUid(decoded.uid);
-    if (existing) {
-      const token = signJWT(existing);
-      return res.json(successResponse('User already registered.', { token, user: existing }));
+    // Check duplicate username
+    const existing = await pool.query('SELECT id FROM students WHERE username = $1', [username]);
+    if (existing.rows && existing.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'A student with this name is already registered.' });
     }
 
-    let resolvedSchoolId = null;
-    if (schoolId) {
-      const school = await School.findById(schoolId);
-      if (!school) return res.status(400).json(errorResponse('Invalid school ID.'));
-      resolvedSchoolId = schoolId;
-      await School.findByIdAndUpdate(schoolId, { student_count_inc: 1 });
-    } else if (customSchoolName && customSchoolName.trim()) {
-      const formattedName = customSchoolName.trim();
-      const code = formattedName.toUpperCase().replace(/\s+/g, '').substring(0, 8) + Math.floor(100 + Math.random() * 900);
-      const { rows: existingSchools } = await pool.query('SELECT * FROM schools WHERE LOWER(name) = LOWER($1) LIMIT 1', [formattedName]);
-      let school;
-      if (existingSchools[0]) {
-        school = existingSchools[0];
-      } else {
-        school = await School.create({
-          name: formattedName,
-          code,
-          is_active: true
-        });
-      }
-      resolvedSchoolId = school.id || school._id;
-      await School.findByIdAndUpdate(resolvedSchoolId, { student_count_inc: 1 });
+    // Check school exists
+    const schoolCheck = await pool.query('SELECT id FROM schools WHERE id = $1', [school_id]);
+    if (!schoolCheck.rows || schoolCheck.rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid school selected.' });
     }
 
-    const user = await User.create({
-      uid: decoded.uid,
-      name: name || decoded.name || 'Student',
-      email: email || decoded.email,
-      phone: phone || decoded.phone_number || '',
-      avatar: decoded.picture || '',
-      role: role || 'student',
-      school_id: resolvedSchoolId,
-      is_verified: decoded.email_verified || false,
-    });
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    const token = signJWT(user);
+    const escapeSQL = (val) => String(val).replace(/'/g, "''");
+    await pool.query(
+      `INSERT INTO students (full_name, username, password, school_id, phone, is_verified) VALUES ('${escapeSQL(full_name)}', '${escapeSQL(username)}', '${escapeSQL(hashedPassword)}', ${Number(school_id)}, '${escapeSQL(phone)}', false)`
+    );
 
-    // Real-time: notify admin dashboard of new student registration
-    if (req.io) {
-      req.io.to('admin').emit('student:registered', {
-        student: { id: user._id || user.id, name: user.name, email: user.email, schoolId: resolvedSchoolId, createdAt: user.createdAt },
-      });
-      if (resolvedSchoolId) {
-        req.io.to(`school_${resolvedSchoolId}`).emit('student:registered', {
-          student: { id: user._id || user.id, name: user.name, email: user.email, schoolId: resolvedSchoolId },
-        });
-      }
-    }
-
-    return res.status(201).json(successResponse('Registration successful.', { token, user }));
-  } catch (error) {
-    if (error.code && error.code.startsWith('auth/')) {
-      return res.status(401).json(errorResponse('Invalid Firebase token.'));
-    }
-    next(error);
-  }
-};
-
-// ─── GET /api/v1/auth/me ─────────────────────────────────────────────────────
-const getMe = async (req, res) => {
-  const user = await User.findById(req.user._id || req.user.id);
-  res.json(successResponse('Profile fetched.', { user }));
-};
-
-// ─── PUT /api/v1/auth/me ──────────────────────────────────────────────────────
-// ─── PUT /api/v1/auth/me ──────────────────────────────────────────────────────
-const updateProfile = async (req, res, next) => {
-  try {
-    const { name, phone, avatar, email } = req.body;
-    const userId = req.user._id || req.user.id;
-    const updates = { name, phone, avatar };
-
-    if (email && email !== req.user.email) {
-      // Update Firebase Auth bypassing recent-login requirements
-      await admin.auth().updateUser(req.user.uid, { email });
-      updates.email = email;
-    }
-
-    const ObjectClean = Object.fromEntries(Object.entries(updates).filter(([_, v]) => v !== undefined));
-    const user = await User.findByIdAndUpdate(userId, ObjectClean);
-    res.json(successResponse('Profile updated.', { user }));
-  } catch (error) {
-    if (error.code === 'auth/email-already-exists' || error.code === '23505') {
-      return res.status(400).json(errorResponse('Email already used by another account.'));
-    }
-    next(error);
-  }
-};
-
-// ─── PUT /api/v1/auth/fcm-token ───────────────────────────────────────────────
-const updateFcmToken = async (req, res, next) => {
-  try {
-    const { fcmToken } = req.body;
-    if (!fcmToken) return res.status(400).json(errorResponse('fcmToken is required.'));
-    await User.addFcmToken(req.user._id || req.user.id, fcmToken);
-    res.json(successResponse('FCM token registered.'));
+    return res.status(201).json({ success: true, message: 'Registration successful. Please login.' });
   } catch (error) {
     next(error);
   }
 };
 
-module.exports = { verifyToken, register, getMe, updateProfile, updateFcmToken };
+module.exports = { login, register };
