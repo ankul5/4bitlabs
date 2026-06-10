@@ -18,9 +18,9 @@ const StudentStack = () => {
         tabBarStyle: {
           backgroundColor: COLORS.tabBarBg,
           borderTopColor: COLORS.tabBarBorder,
-          paddingBottom: 6,
-          paddingTop: 6,
-          height: 60,
+          paddingBottom: 16,
+          paddingTop: 8,
+          height: 76,
         },
         tabBarLabelStyle: {
           fontSize: 11,

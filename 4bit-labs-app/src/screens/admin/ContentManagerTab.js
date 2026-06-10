@@ -36,7 +36,11 @@ const ContentManagerTab = () => {
     const load = async () => {
       try {
         const res = await getSchools();
-        setSchools(res.schools || []);
+        const loadedSchools = res.schools || [];
+        setSchools(loadedSchools);
+        if (loadedSchools.length > 0 && !selectedSchool) {
+          setSelectedSchool(loadedSchools[0]);
+        }
       } catch (e) { console.warn(e); }
     };
     load();

@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert,
+  TextInput, ActivityIndicator, Alert, Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
-import { getSchools, createSchool, deleteSchool, getStudents } from '../../services/adminService';
+import { getSchools, createSchool, updateSchool, deleteSchool, getStudents } from '../../services/adminService';
 import AdminHeader from '../../components/AdminHeader';
 
 const SchoolsTab = () => {
@@ -16,6 +16,9 @@ const SchoolsTab = () => {
   const [loading, setLoading] = useState(true);
   const [newSchool, setNewSchool] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editModal, setEditModal] = useState(null); // school object being edited
+  const [editName, setEditName] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -47,6 +50,25 @@ const SchoolsTab = () => {
       Alert.alert('Error', err.response?.data?.message || 'Failed to create school.');
     } finally {
       setAdding(false);
+    }
+  };
+
+  const openEdit = (school) => {
+    setEditModal(school);
+    setEditName(school.name);
+  };
+
+  const handleEdit = async () => {
+    if (!editName.trim()) return;
+    setSaving(true);
+    try {
+      await updateSchool(editModal.id, editName.trim());
+      setEditModal(null);
+      loadData();
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -87,9 +109,14 @@ const SchoolsTab = () => {
             </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => handleDelete(item.id, item.name)} style={styles.deleteBtn}>
-          <MaterialIcons name="delete-outline" size={20} color={COLORS.error} />
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity onPress={() => openEdit(item)} style={styles.actionBtn}>
+            <MaterialIcons name="edit" size={18} color={COLORS.secondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => handleDelete(item.id, item.name)} style={styles.actionBtn}>
+            <MaterialIcons name="delete-outline" size={18} color={COLORS.error} />
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -127,6 +154,36 @@ const SchoolsTab = () => {
           ListEmptyComponent={<Text style={styles.emptyText}>No schools yet. Add one above.</Text>}
         />
       )}
+
+      {/* Edit School Modal */}
+      <Modal visible={editModal !== null} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit School</Text>
+            <Text style={styles.fieldLabel}>SCHOOL NAME</Text>
+            <TextInput
+              style={styles.input}
+              value={editName}
+              onChangeText={setEditName}
+              placeholder="School name"
+              placeholderTextColor={COLORS.onSurfaceVariant}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditModal(null)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.saveBtn} onPress={handleEdit} disabled={saving}>
+                {saving ? (
+                  <ActivityIndicator color={COLORS.white} size="small" />
+                ) : (
+                  <Text style={styles.saveText}>Update</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -142,8 +199,20 @@ const styles = StyleSheet.create({
   schoolIcon: { width: 42, height: 42, borderRadius: 21, backgroundColor: COLORS.primaryFixed, alignItems: 'center', justifyContent: 'center' },
   itemName: { fontSize: 16, fontWeight: '700', color: COLORS.onSurface },
   itemCount: { fontSize: 12, color: COLORS.onSurfaceVariant, marginTop: 2 },
-  deleteBtn: { padding: 8 },
+  actions: { flexDirection: 'row', gap: 4 },
+  actionBtn: { padding: 8 },
   emptyText: { textAlign: 'center', color: COLORS.onSurfaceVariant, marginTop: 40, fontSize: 14 },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.surfaceContainerLowest, borderTopLeftRadius: RADIUS['2xl'], borderTopRightRadius: RADIUS['2xl'], padding: SPACING['2xl'] },
+  modalTitle: { fontSize: 22, fontWeight: '800', color: COLORS.onSurface, marginBottom: SPACING.xl, letterSpacing: -0.5 },
+  fieldLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 2, color: COLORS.onSurfaceVariant, marginBottom: SPACING.sm, marginLeft: 4 },
+  input: { backgroundColor: COLORS.surfaceContainerLow, borderRadius: RADIUS.lg, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: COLORS.onSurface, marginBottom: SPACING.lg },
+  modalActions: { flexDirection: 'row', gap: 12, marginTop: SPACING.md },
+  cancelBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', backgroundColor: COLORS.surfaceContainerHigh, borderRadius: RADIUS.full },
+  cancelText: { fontWeight: '700', color: COLORS.onSurface, fontSize: 15 },
+  saveBtn: { flex: 1, paddingVertical: 14, alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: RADIUS.full, ...SHADOWS.primaryGlow },
+  saveText: { fontWeight: '700', color: COLORS.white, fontSize: 15 },
 });
 
 export default SchoolsTab;

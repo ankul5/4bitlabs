@@ -15,6 +15,11 @@ export const deleteSchool = async (id) => {
   return response.data;
 };
 
+export const updateSchool = async (id, name) => {
+  const response = await api.put(`/schools/${id}`, { name });
+  return response.data;
+};
+
 export const getStudents = async () => {
   const response = await api.get('/students');
   return response.data;

@@ -31,6 +31,28 @@ const createSchool = async (req, res, next) => {
   }
 };
 
+const updateSchool = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: 'School name is required.' });
+    }
+    const checkExist = await pool.query('SELECT id FROM schools WHERE id = $1', [id]);
+    if (!checkExist.rows || checkExist.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'School not found.' });
+    }
+    const duplicate = await pool.query('SELECT id FROM schools WHERE LOWER(name) = LOWER($1) AND id != $2', [name.trim(), id]);
+    if (duplicate.rows && duplicate.rows.length > 0) {
+      return res.status(409).json({ success: false, message: 'A school with that name already exists.' });
+    }
+    await pool.query('UPDATE schools SET name = $1 WHERE id = $2', [name.trim(), id]);
+    res.json({ success: true, message: 'School updated.', school: { id: Number(id), name: name.trim() } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 const deleteSchool = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -45,4 +67,4 @@ const deleteSchool = async (req, res, next) => {
   }
 };
 
-module.exports = { getSchools, createSchool, deleteSchool };
+module.exports = { getSchools, createSchool, updateSchool, deleteSchool };
