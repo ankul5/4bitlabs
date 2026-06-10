@@ -34,16 +34,31 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
+// Smart key: use user ID from JWT when logged in, fall back to IP.
+// This way each user gets their own bucket whether they share an IP or not.
+const jwt = require('jsonwebtoken');
+const getUserKey = (req) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      return `user_${decoded.id || decoded.username}`;
+    }
+  } catch (_) { /* token invalid or missing — fall back to IP */ }
+  return req.ip;
+};
+
 const globalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 2000,
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 500,
+  keyGenerator: getUserKey,
   message: { success: false, message: 'Too many requests, please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 500,
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 200,
   message: { success: false, message: 'Too many auth requests, please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
