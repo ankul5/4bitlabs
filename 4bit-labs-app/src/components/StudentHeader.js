@@ -66,10 +66,13 @@ const StudentHeader = ({ title }) => {
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{user?.full_name?.charAt(0)?.toUpperCase() || 'S'}</Text>
               </View>
-              <View style={{ flex: 1 }}>
+              <View style={{ flex: 1, marginRight: 8 }}>
                 <Text style={styles.profileName} numberOfLines={1}>{user?.full_name || 'Student'}</Text>
                 <Text style={styles.profileSub} numberOfLines={1}>{user?.school_name || 'No School'}</Text>
               </View>
+              <TouchableOpacity style={styles.inlineLogoutBtn} onPress={() => { closeMenu(); logout(); }}>
+                <MaterialIcons name="logout" size={20} color={COLORS.error} />
+              </TouchableOpacity>
             </View>
 
             {/* Navigation Items */}
@@ -93,14 +96,6 @@ const StudentHeader = ({ title }) => {
                   </TouchableOpacity>
                 );
               })}
-            </View>
-
-            {/* Drawer Footer */}
-            <View style={styles.drawerFooter}>
-              <TouchableOpacity style={styles.logoutBtn} onPress={() => { closeMenu(); logout(); }}>
-                <MaterialIcons name="logout" size={20} color={COLORS.error} />
-                <Text style={styles.logoutText}>Sign Out</Text>
-              </TouchableOpacity>
             </View>
           </Animated.View>
         </View>
@@ -236,22 +231,12 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontWeight: '700',
   },
-  drawerFooter: {
-    paddingVertical: SPACING.xl,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.surfaceContainerLow,
-    marginBottom: 40,
-  },
-  logoutBtn: {
-    flexDirection: 'row',
+  inlineLogoutBtn: {
+    padding: 8,
+    borderRadius: RADIUS.md,
+    backgroundColor: COLORS.error + '15',
     alignItems: 'center',
-    gap: 10,
-    padding: 10,
-  },
-  logoutText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: COLORS.error,
+    justifyContent: 'center',
   },
 });
 
