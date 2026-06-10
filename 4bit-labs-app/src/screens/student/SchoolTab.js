@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator, Modal, Linking, FlatList,
+  ActivityIndicator, Modal, Linking, FlatList, RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ const SchoolTab = () => {
 
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeFolder, setActiveFolder] = useState(null); // 'video' | 'code' | 'connection'
   const [folderItems, setFolderItems] = useState([]);
   const [folderLoading, setFolderLoading] = useState(false);
@@ -28,10 +29,22 @@ const SchoolTab = () => {
       const res = await getAnnouncements(schoolId);
       setAnnouncements(res.announcements || []);
     } catch (e) { console.warn(e); }
-    finally { setLoading(false); }
   }, [schoolId]);
 
-  useEffect(() => { loadAnnouncements(); }, [loadAnnouncements]);
+  useEffect(() => {
+    const initLoad = async () => {
+      setLoading(true);
+      await loadAnnouncements();
+      setLoading(false);
+    };
+    initLoad();
+  }, [loadAnnouncements]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAnnouncements();
+    setRefreshing(false);
+  };
 
   const openFolder = async (type) => {
     setActiveFolder(type);
@@ -66,7 +79,11 @@ const SchoolTab = () => {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StudentHeader title="My School" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scroll} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+      >
         {/* Announcements */}
         <Text style={styles.sectionTitle}>Announcements</Text>
         {loading ? (

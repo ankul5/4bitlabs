@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Modal, ScrollView,
+  TextInput, ActivityIndicator, Alert, Modal, ScrollView, RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ const StudentsTab = () => {
   const [students, setStudents] = useState([]);
   const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -23,18 +24,28 @@ const StudentsTab = () => {
 
   const loadData = useCallback(async () => {
     try {
-      setLoading(true);
       const [studRes, schRes] = await Promise.all([getStudents(), getSchools()]);
       setStudents(studRes.students || []);
       setSchools(schRes.schools || []);
     } catch (err) {
       Alert.alert('Error', 'Failed to load data.');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    const initLoad = async () => {
+      setLoading(true);
+      await loadData();
+      setLoading(false);
+    };
+    initLoad();
+  }, [loadData]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   const resetForm = () => {
     setForm({ full_name: '', password: '', phone: '', school_id: '', school_name: '' });
@@ -201,6 +212,7 @@ const StudentsTab = () => {
               </Text>
             </View>
           }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         />
       )}
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Modal, ScrollView,
+  TextInput, ActivityIndicator, Alert, Modal, ScrollView, RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -27,28 +27,29 @@ const ContentManagerTab = () => {
   const [activeTab, setActiveTab] = useState('video');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ title: '', content: '' });
 
+  const loadSchools = async () => {
+    try {
+      const res = await getSchools();
+      const loadedSchools = res.schools || [];
+      setSchools(loadedSchools);
+      if (loadedSchools.length > 0 && !selectedSchool) {
+        setSelectedSchool(loadedSchools[0]);
+      }
+    } catch (e) { console.warn(e); }
+  };
+
   useEffect(() => {
-    const load = async () => {
-      try {
-        const res = await getSchools();
-        const loadedSchools = res.schools || [];
-        setSchools(loadedSchools);
-        if (loadedSchools.length > 0 && !selectedSchool) {
-          setSelectedSchool(loadedSchools[0]);
-        }
-      } catch (e) { console.warn(e); }
-    };
-    load();
+    loadSchools();
   }, []);
 
   const loadItems = useCallback(async () => {
     if (!selectedSchool) { setItems([]); return; }
-    setLoading(true);
     try {
       if (activeTab === 'announcement') {
         const res = await getAnnouncements(selectedSchool.id);
@@ -59,12 +60,24 @@ const ContentManagerTab = () => {
       }
     } catch (e) {
       Alert.alert('Error', 'Failed to load items.');
-    } finally {
-      setLoading(false);
     }
   }, [selectedSchool, activeTab]);
 
-  useEffect(() => { loadItems(); }, [loadItems]);
+  useEffect(() => { 
+    const initLoad = async () => {
+      setLoading(true);
+      await loadItems();
+      setLoading(false);
+    };
+    initLoad();
+  }, [loadItems]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadSchools();
+    await loadItems();
+    setRefreshing(false);
+  };
 
   const isAnnouncement = activeTab === 'announcement';
   const contentLabel = activeTab === 'video' ? 'URL (YouTube/Drive link)' : activeTab === 'code' ? 'Code Content' : activeTab === 'connection' ? 'Plan Content' : 'Message';
@@ -213,6 +226,7 @@ const ContentManagerTab = () => {
               renderItem={renderItem}
               contentContainerStyle={styles.list}
               ListEmptyComponent={<Text style={styles.emptyText}>No items yet.</Text>}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
             />
           )}
         </>

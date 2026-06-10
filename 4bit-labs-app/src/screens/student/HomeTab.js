@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
@@ -21,40 +21,55 @@ const HomeTab = () => {
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [counts, setCounts] = useState({ videos: 0, code: 0, connections: 0, announcements: 0 });
 
   const isVerified = !!user?.is_verified;
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        const schoolId = user?.school_id;
-        if (!schoolId) { setLoading(false); return; }
-        const [vidRes, codeRes, connRes, annRes] = await Promise.all([
-          getContent(schoolId, 'video'),
-          getContent(schoolId, 'code'),
-          getContent(schoolId, 'connection'),
-          getAnnouncements(schoolId),
-        ]);
-        setCounts({
-          videos: vidRes.content?.length || 0,
-          code: codeRes.content?.length || 0,
-          connections: connRes.content?.length || 0,
-          announcements: annRes.announcements?.length || 0,
-        });
-      } catch (e) {
-        console.warn(e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const loadData = useCallback(async () => {
+    try {
+      const schoolId = user?.school_id;
+      if (!schoolId) return;
+      const [vidRes, codeRes, connRes, annRes] = await Promise.all([
+        getContent(schoolId, 'video'),
+        getContent(schoolId, 'code'),
+        getContent(schoolId, 'connection'),
+        getAnnouncements(schoolId),
+      ]);
+      setCounts({
+        videos: vidRes.content?.length || 0,
+        code: codeRes.content?.length || 0,
+        connections: connRes.content?.length || 0,
+        announcements: annRes.announcements?.length || 0,
+      });
+    } catch (e) {
+      console.warn(e);
+    }
   }, [user]);
+
+  useEffect(() => {
+    const initLoad = async () => {
+      setLoading(true);
+      await loadData();
+      setLoading(false);
+    };
+    initLoad();
+  }, [loadData]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StudentHeader title="Home" />
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        contentContainerStyle={styles.scroll} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+      >
         {/* Welcome Card */}
         <View style={styles.welcomeCard}>
           <Text style={styles.welcomeTag}>WELCOME BACK</Text>

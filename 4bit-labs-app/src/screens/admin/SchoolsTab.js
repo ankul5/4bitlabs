@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  TextInput, ActivityIndicator, Alert, Modal,
+  TextInput, ActivityIndicator, Alert, Modal, RefreshControl
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -14,6 +14,7 @@ const SchoolsTab = () => {
   const [schools, setSchools] = useState([]);
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [newSchool, setNewSchool] = useState('');
   const [adding, setAdding] = useState(false);
   const [editModal, setEditModal] = useState(null); // school object being edited
@@ -22,18 +23,28 @@ const SchoolsTab = () => {
 
   const loadData = useCallback(async () => {
     try {
-      setLoading(true);
       const [schRes, stuRes] = await Promise.all([getSchools(), getStudents()]);
       setSchools(schRes.schools || []);
       setStudents(stuRes.students || []);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.message || 'Failed to load data.');
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    const initLoad = async () => {
+      setLoading(true);
+      await loadData();
+      setLoading(false);
+    };
+    initLoad();
+  }, [loadData]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  };
 
   const getStudentCount = (schoolId) => {
     return students.filter(s => s.school_id === schoolId).length;
@@ -152,6 +163,7 @@ const SchoolsTab = () => {
           renderItem={renderSchool}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.emptyText}>No schools yet. Add one above.</Text>}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
         />
       )}
 

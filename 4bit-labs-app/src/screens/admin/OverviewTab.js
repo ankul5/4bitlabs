@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../../config/theme';
@@ -21,13 +21,13 @@ const OverviewTab = () => {
   const insets = useSafeAreaInsets();
   const { logout, user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [stats, setStats] = useState({
     schools: 0, students: 0, videos: 0, code: 0, connections: 0, announcements: 0,
   });
 
   const loadStats = useCallback(async () => {
     try {
-      setLoading(true);
       const [schRes, stuRes, vidRes, codeRes, connRes, annRes] = await Promise.all([
         getSchools(),
         getStudents(),
@@ -46,15 +46,30 @@ const OverviewTab = () => {
       });
     } catch (e) {
       console.warn('Failed to load stats:', e.message);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadStats(); }, [loadStats]);
+  useEffect(() => {
+    const initLoad = async () => {
+      setLoading(true);
+      await loadStats();
+      setLoading(false);
+    };
+    initLoad();
+  }, [loadStats]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadStats();
+    setRefreshing(false);
+  };
 
   return (
-    <ScrollView style={[styles.container, { paddingTop: insets.top }]} contentContainerStyle={styles.scrollContent}>
+    <ScrollView 
+      style={[styles.container, { paddingTop: insets.top }]} 
+      contentContainerStyle={styles.scrollContent}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
+    >
       <AdminHeader title="Overview" />
       <View style={{ marginVertical: SPACING.sm }}>
         <Text style={styles.subtitle}>Overview of all system statistics</Text>
